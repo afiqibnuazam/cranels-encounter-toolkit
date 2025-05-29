@@ -115,6 +115,7 @@ const Auth = () => {
     useEffect(() => {
         if (authToken) {
             router.push("/");
+            return;
         }
     }, [authToken, router]);
 

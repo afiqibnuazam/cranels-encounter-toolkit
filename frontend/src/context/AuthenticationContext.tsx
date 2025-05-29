@@ -117,8 +117,6 @@ export const AuthenticationProvider = ({ children }: { children: React.ReactNode
     )
 }
 
-// export default AppProvider
-
 export const useAuthentication = () => {
     const context = useContext(AuthenticationContext);
     if (context === undefined) {

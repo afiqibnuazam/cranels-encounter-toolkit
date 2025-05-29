@@ -15,12 +15,16 @@ import ReferencePane from './ReferencePane'
 import { Sheet, SheetTrigger } from './ui/sheet'
 import { Avatar, AvatarFallback } from './ui/avatar'
 import { useAuthentication } from '@/context/AuthenticationContext'
+import { usePathname } from 'next/navigation'
 
 const Navbar = () => {
 
     const { theme, setTheme } = useTheme();
     const { toggleSidebar } = useSidebar()
     const { logout, authToken } = useAuthentication();
+    const pathName = usePathname();
+    
+    const hideReferencePane = pathName === '/auth';
 
     return (
         <nav className="p-4 flex items-center justify-between sticky top-0 bg-background z-10">
@@ -30,12 +34,14 @@ const Navbar = () => {
                 Custom Button
             </Button> */}
             <div className="flex items-center gap-4">
-                <Sheet>
-                    <SheetTrigger asChild>
-                        <Button><PanelLeftIcon /></Button>
-                    </SheetTrigger>
-                    <ReferencePane />
-                </Sheet>
+                {!hideReferencePane && (
+                    <Sheet>
+                        <SheetTrigger asChild>
+                            <Button><PanelLeftIcon /></Button>
+                        </SheetTrigger>
+                        <ReferencePane />
+                    </Sheet>
+                )}
                 <Link href="/" className="text-lg font-bold">
                     Cranel Encounter Toolkit
                 </Link>
