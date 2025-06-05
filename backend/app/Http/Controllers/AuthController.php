@@ -44,7 +44,7 @@ class AuthController extends Controller
          */
         $user = Auth::user();
         
-        $token = $user->createToken('auth_token')->accessToken;
+        $token = $user->createToken('auth_token')->plainTextToken;
 
         return response()->json([
             'status' => true,
@@ -67,8 +67,9 @@ class AuthController extends Controller
 
 
     // Logout API
-    public function logout(){
-        Auth::logout();
+    public function logout(Request $request){
+        // Auth::logout();
+        $request->user()->currentAccessToken()->delete();
 
         return response()->json([
             'status' => true,

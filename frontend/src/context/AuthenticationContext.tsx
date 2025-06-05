@@ -20,8 +20,8 @@ export const AuthenticationProvider = ({ children }: { children: React.ReactNode
     const [authToken, setAuthToken] = useState<string | null>(null);
     const router = useRouter();
 
-    useEffect( () => {
-        
+    useEffect(() => {
+
         const token = Cookies.get("authToken");
 
         if (token) {
@@ -45,7 +45,7 @@ export const AuthenticationProvider = ({ children }: { children: React.ReactNode
                     password,
                 }),
             });
-           
+
             const data = await response.json();
 
             if (data.status) {
@@ -56,7 +56,7 @@ export const AuthenticationProvider = ({ children }: { children: React.ReactNode
                 });
                 setAuthToken(data.token);
 
-                toast.success("Login successful");
+                toast.success(data.message);
                 router.push("/");
             } else {
                 toast.error("Login failed");
@@ -86,7 +86,7 @@ export const AuthenticationProvider = ({ children }: { children: React.ReactNode
                     password_confirmation,
                 }),
             });
-            
+
             const data = await response.json();
 
             if (data.status) {
@@ -103,11 +103,28 @@ export const AuthenticationProvider = ({ children }: { children: React.ReactNode
         }
     }
 
-    const logout = () => {
-        setAuthToken(null);
-        Cookies.remove("authToken");
-        setIsLoading(false);
-        toast.success("Logout successful");
+    const logout = async () => {
+        setIsLoading(true);
+        try {
+            const response = await fetch(`${API_URL}/logout`, {
+                method: "POST",
+                headers: {
+                    "Authorization": `Bearer ${authToken}`,
+                    "Content-Type": "application/json",
+                },
+            });
+
+            const data = await response.json();
+            toast.success(data.message);
+
+        } catch (error) {
+            console.error("Logout error:", error);
+            toast.error("Logout failed");
+        } finally {
+            setAuthToken(null);
+            Cookies.remove("authToken");
+            setIsLoading(false);
+        }
     }
 
     return (

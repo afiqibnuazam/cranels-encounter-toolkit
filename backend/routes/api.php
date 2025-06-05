@@ -3,10 +3,10 @@
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\AuthController;
-use App\Http\Controllers\Api\ReferencePaneController;
-use App\Http\Controllers\Api\UnitController;
-use App\Http\Controllers\Api\SpellController;
+use App\Http\Controllers\Api\CharacterController;
 use App\Http\Controllers\Api\EncounterController;
+use App\Http\Controllers\Api\MonsterController;
+use App\Http\Controllers\Api\SpellController;
 use App\Http\Controllers\Api\SrdMonsterController;
 use App\Http\Controllers\Api\SrdSpellController;
 
@@ -17,21 +17,12 @@ Route::post('login', [AuthController::class, 'login'])->middleware('throttle:5,1
 
 Route::middleware('auth:sanctum')->group(function () {
     Route::get('profile', [AuthController::class, 'profile']);
-    Route::get('logout', [AuthController::class, 'logout']);
+    Route::post('logout', [AuthController::class, 'logout']);
 
-    Route::prefix('reference')->group(function () {
-        Route::get('monsters', [ReferencePaneController::class, 'monsters']);
-        Route::get('characters', [ReferencePaneController::class, 'characters']);
-        Route::get('spells', [ReferencePaneController::class, 'spells']);
-        Route::get('encounters', [ReferencePaneController::class, 'encounters']);
-    });
-
-    Route::apiResource('units', UnitController::class);
-    // Route::post('monsters/clone/{index}', MonsterCloneController::class);
-
+    // Custom user content routes (authenticated only)
+    Route::apiResource('monsters', MonsterController::class);
+    Route::apiResource('characters', CharacterController::class);
     Route::apiResource('spells', SpellController::class);
-    // Route::post('spells/clone/{index}', SpellCloneController::class);
-
     Route::apiResource('encounters', EncounterController::class);
 });
 
