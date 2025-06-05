@@ -61,12 +61,6 @@ type AuthForm = {
 
 const Auth = () => {
     const [isLogin, setIsLogin] = useState<boolean>(true)
-    // const [formData, setFormData] = useState<formData>({
-    //     displayName: "",
-    //     email: "",
-    //     password: "",
-    //     password_confirmation: "",
-    // })
 
     const form = useForm<AuthForm>({
         resolver: zodResolver(isLogin ? loginSchema : registerSchema),
@@ -79,39 +73,7 @@ const Auth = () => {
 
     const { isLoading, authToken, login, register } = useAuthentication();
 
-    // const handleFormSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
-    //     event?.preventDefault();
-
-    //     if (isLogin) {
-    //         try {
-    //             await login(form.getValues("email"), form.getValues("password"));
-    //         } catch (error) {
-    //             console.error("Login failed:", error);
-    //             alert("Login failed. Please try again.");
-    //         }
-
-    //     } else {
-    //         try {
-    //             await register(
-    //                 form.getValues("displayName")!,
-    //                 form.getValues("email"),
-    //                 form.getValues("password"),
-    //                 form.getValues("password_confirmation")!
-    //             );
-    //         } catch (error) {
-    //             console.error("Registration failed:", error);
-    //             alert("Registration failed. Please try again.");
-    //         }
-    //     }
-    // }
-
-    // const handleOnChangeInput = (event: React.ChangeEvent<HTMLInputElement>) => {
-    //     setFormData({
-    //         ...form,
-    //         [event.target.name]: event.target.value,
-    //     })
-    // }
-
+    
     useEffect(() => {
         if (authToken) {
             router.push("/");
@@ -120,8 +82,6 @@ const Auth = () => {
     }, [authToken, router]);
 
     function onSubmit(values: AuthForm) {
-        console.log("Form submitted with values:", values)
-
         if (isLogin) {
             login(
                 values.email,
