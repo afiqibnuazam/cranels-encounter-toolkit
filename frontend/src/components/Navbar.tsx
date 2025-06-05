@@ -10,7 +10,6 @@ import {
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { useTheme } from 'next-themes'
-import { SidebarTrigger, useSidebar } from './ui/sidebar'
 import ReferencePane from './ReferencePane'
 import { Sheet, SheetTrigger } from './ui/sheet'
 import { Avatar, AvatarFallback } from './ui/avatar'
@@ -20,19 +19,14 @@ import { usePathname } from 'next/navigation'
 const Navbar = () => {
 
     const { theme, setTheme } = useTheme();
-    const { toggleSidebar } = useSidebar()
     const { logout, authToken } = useAuthentication();
     const pathName = usePathname();
-    
+
     const hideReferencePane = pathName === '/auth';
 
     return (
         <nav className="p-4 flex items-center justify-between sticky top-0 bg-background z-10">
             {/* LEFT */}
-            {/* <SidebarTrigger /> */}
-            {/* <Button variant={"outline"} onClick={toggleSidebar}>
-                Custom Button
-            </Button> */}
             <div className="flex items-center gap-4">
                 {!hideReferencePane && (
                     <Sheet>
@@ -74,11 +68,9 @@ const Navbar = () => {
                 {authToken ? (
                     <DropdownMenu>
                         <DropdownMenuTrigger asChild>
-                            <Button>
-                                <Avatar className='cusror-pointer'>
-                                    <AvatarFallback><User /></AvatarFallback>
-                                </Avatar>
-                            </Button>
+                            <Avatar className="cursor-pointer">
+                                <AvatarFallback><User /></AvatarFallback>
+                            </Avatar>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align='end'>
                             <DropdownMenuItem>

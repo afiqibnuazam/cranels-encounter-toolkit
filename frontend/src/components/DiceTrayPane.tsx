@@ -2,9 +2,7 @@ import React from 'react'
 import { Sheet, SheetContent, SheetFooter, SheetHeader, SheetTitle, SheetTrigger } from './ui/sheet'
 import { Button } from './ui/button'
 
-type Props = {}
-
-const DiceTrayPane = (props: Props) => {
+const DiceTrayPane = () => {
   return (
     <Sheet>
         <SheetTrigger asChild>
