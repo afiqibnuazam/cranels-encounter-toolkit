@@ -2,48 +2,79 @@
 
 namespace App\Http\Controllers\Api;
 
-use App\Models\Spell;
-use App\Models\SrdSpell;
-use Illuminate\Http\Request;
 use App\Http\Controllers\Controller;
+use App\Models\Spell;
+use Illuminate\Http\Request;
 
 class SpellController extends Controller
 {
-    public function index()
+    /**
+     * Display a listing of custom spells for authenticated user.
+     */
+    public function index(Request $request)
     {
-        $srd = SrdSpell::all()->map(function ($s) {
-            return [
-                'id' => $s->id,
-                'index' => $s->index,
-                'name' => $s->name,
-                'level' => $s->level,
-                'school' => $s->school,
-                'source' => 'srd',
-            ];
-        });
+        // Only return custom spells for the authenticated user
+        $spells = Spell::where('user_id', $request->user()->id)
+            ->with('tags')
+            ->select([
+                'id',
+                'index',
+                'name',
+                'level',
+                'school', // This serves as 'type' for spells
+                'source'
+            ])
+            ->get()
+            ->map(fn ($s) => [
+                'id'            => $s->id,
+                'index'         => $s->index,
+                'name'          => $s->name,
+                'level'         => $s->level,
+                'school'        => $s->school,
+                'source'        => $s->source ?? 'Custom',
+                'data_source'   => 'custom', // To distinguish custom spells
+                'tags'          => $s->tags->pluck('name')->toArray(),
+            ]);
 
-        $custom = Spell::all()->map(function ($s) {
-            return [
-                'id' => $s->id,
-                'index' => $s->index,
-                'name' => $s->name,
-                'level' => $s->level,
-                'school' => $s->school,
-                'source' => 'custom',
-            ];
-        });
-
-        return response()->json($srd->merge($custom)->sortBy('name')->values());
+        return response()->json($spells);
     }
 
-    public function show($index)
+    /**
+     * Store a newly created custom spell in storage.
+     */
+    public function store(Request $request)
     {
-        $spell = Spell::where('index', $index)->first() ?? SrdSpell::where('index', $index)->first();
+        // TODO: Implement custom spell creation
+        // Create new Spell with user_id = authenticated user
+    }
 
-        if (!$spell) {
-            return response()->json(['error' => 'Spell not found'], 404);
-        }
+    /**
+     * Display the specified custom spell with all attributes.
+     */
+    public function show(string $id, Request $request)
+    {
+        $spell = Spell::where('user_id', $request->user()->id)
+            ->where('id', $id)
+            ->firstOrFail();
 
         return response()->json($spell);
+    }
+
+    /**
+     * Update the specified custom spell in storage.
+     */
+    public function update(Request $request, string $id)
+    {
+        // TODO: Implement custom spell update
+        // Validate ownership
+    }
+
+    /**
+     * Remove the specified custom spell from storage.
+     */
+    public function destroy(string $id, Request $request)
+    {
+        // TODO: Implement custom spell deletion
+        // Validate ownership
     }
 }

@@ -12,18 +12,27 @@ use Illuminate\Support\Facades\Auth;
 class EncounterController extends Controller
 {
     /**
-     * Display a listing of the resource.
+     * Display a listing of encounters for the authenticated user.
+     * Only returns name, folder_name, and status for display (no filtering).
      */
-    public function index()
+    public function index(Request $request)
     {
-        $user_id = Auth::id();
+        $encounters = Encounter::where('user_id', $request->user()->id)
+            ->select([
+                'id',
+                'name',
+                'folder_name',
+                'status'
+            ])
+            ->get()
+            ->map(fn ($e) => [
+                'id'            => $e->id,
+                'name'          => $e->name,
+                'folder_name'   => $e->folder_name,
+                'status'        => $e->status->value,
+            ]);
 
-        $encounters = Encounter::where('user_id', $user_id)->get();
-
-        return response()->json([
-            'status' => true,
-            'encounters' => $encounters,
-        ]);
+        return response()->json($encounters);
     }
 
     /**
@@ -49,18 +58,16 @@ class EncounterController extends Controller
     }
 
     /**
-     * Display the specified resource.
+     * Display the specified encounter with all attributes including combatant list.
      */
-    public function show(Encounter $encounter)
+    public function show(string $id, Request $request)
     {
-        if ($resp = $this->authorizeEncounter($encounter)) {
-            return $resp;
-        }
+        $encounter = Encounter::with('combatants')
+            ->where('user_id', $request->user()->id)
+            ->where('id', $id)
+            ->firstOrFail();
 
-        return response()->json([
-            'status' => true,
-            'encounter' => $encounter,
-        ]);
+        return response()->json($encounter);
     }
 
     /**

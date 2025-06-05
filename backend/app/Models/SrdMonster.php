@@ -41,6 +41,7 @@ class SrdMonster extends Model
         'actions',
         'legendary_actions',
         'reactions',
+        'source',
     ];
 
     protected $casts = [
