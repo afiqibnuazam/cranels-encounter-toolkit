@@ -6,6 +6,191 @@
 // Import shared types
 import { AbilityScore } from './monster';
 
+// ===== ENUMS =====
+
+// Spell levels from 0 (cantrips) to 9
+export const SPELL_LEVEL_LABELS: Record<SpellLevel, string> = {
+    0: 'Cantrip',
+    1: '1st Level',
+    2: '2nd Level',
+    3: '3rd Level',
+    4: '4th Level',
+    5: '5th Level',
+    6: '6th Level',
+    7: '7th Level',
+    8: '8th Level',
+    9: '9th Level',
+};
+
+export type SpellLevel = 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9;
+
+// Spell schools of magic
+export const SPELL_SCHOOLS = [
+    'Abjuration',
+    'Conjuration',
+    'Divination',
+    'Enchantment',
+    'Evocation',
+    'Illusion',
+    'Necromancy',
+    'Transmutation'
+] as const;
+
+export type SpellSchool = typeof SPELL_SCHOOLS[number];
+
+// Spell casting times
+export const STANDARD_CASTING_TIMES = [
+    "1 action",
+    "1 bonus action",
+    "1 reaction",
+    "1 minute",
+    "10 minutes",
+    "1 hour",
+    "8 hours",
+    "12 hours",
+    "24 hours",
+] as const;
+
+export type StandardCastingTime = typeof STANDARD_CASTING_TIMES[number];
+export type SpellCastingTime =
+    | StandardCastingTime
+    | string;
+
+// Spell components
+
+// Spell range types
+export type SpellRangeBase = "Self" | "Touch" | "Ranged" | "Sight" | "Unlimited";
+export type SpellRangeUnit = "feet" | "mile";
+
+// Spell attack types
+export const ATTACK_TYPES = [
+    "melee",
+    "ranged"
+] as const;
+
+export type AttackTypes = typeof ATTACK_TYPES[number];
+export type AttackType = AttackTypes;
+
+// Spell durations
+export const STANDARD_DURATIONS = [
+    "Instantaneous",
+    "1 Minute",
+    "10 Minutes",
+    "1 Hour",
+    "8 Hours",
+    "24 Hours",
+    "Until Dispelled",
+] as const;
+
+export type StandardDuration = typeof STANDARD_DURATIONS[number];
+export type SpellDuration =
+    | StandardDuration
+    | string;
+
+
+// Spell components enum
+export const SPELL_COMPONENTS = [
+    'V', // Verbal
+    'S', // Somatic
+    'M'  // Material
+] as const;
+
+export type SpellComponent = typeof SPELL_COMPONENTS[number];
+
+// Area of effect types
+export type AreaOfEffectType =
+    | 'sphere'
+    | 'cube'
+    | 'line'
+    | 'cone'
+    | 'cylinder'
+    | 'square'
+    | 'hemisphere';
+
+// Damage types enum
+export type DamageType =
+    | 'acid'
+    | 'bludgeoning'
+    | 'cold'
+    | 'fire'
+    | 'force'
+    | 'lightning'
+    | 'necrotic'
+    | 'piercing'
+    | 'poison'
+    | 'psychic'
+    | 'radiant'
+    | 'slashing'
+    | 'thunder';
+
+// DC save results enum
+export type DCSaveResult =
+    | 'none'
+    | 'half'
+    | 'other';
+
+// D&D 5e classes enum for reference
+export type DnDClass =
+    | 'barbarian'
+    | 'bard'
+    | 'cleric'
+    | 'druid'
+    | 'fighter'
+    | 'monk'
+    | 'paladin'
+    | 'ranger'
+    | 'rogue'
+    | 'sorcerer'
+    | 'warlock'
+    | 'wizard'
+    | 'artificer';
+
+
+// ===== INTERFACES =====
+
+export interface SpellRangeInput {
+  base: SpellRangeBase;
+  distance?: number;      // Only if base is Ranged
+  unit?: SpellRangeUnit;  // Only if base is Ranged
+}
+
+export interface SpellDamage {
+    damage_type?: DamageType;
+    damage_at_slot_level?: { [slotLevel: string]: string }; // e.g., { "1": "3d6", "2": "4d6" }
+    damage_at_character_level?: { [characterLevel: string]: string }; // For cantrips
+}
+
+export interface AreaOfEffect {
+    type: AreaOfEffectType;
+    size?: number;       // Radius, length, width, etc.
+    radius?: number;     // For spheres, cylinders
+    length?: number;     // For lines, cones
+    width?: number;      // For lines
+    height?: number;     // For cylinders
+}
+
+export interface DifficultyClass {
+    dc_type?: AbilityScore;
+    dc_success?: DCSaveResult;
+}
+
+export interface HealingScale {
+    [slotLevel: string]: string; // e.g., { "1": "1d4+4", "2": "2d4+4" }
+}
+
+export interface SpellClass {
+    index: string;   // e.g., 'wizard'
+    name: string;    // e.g., 'Wizard'
+    url?: string;    // API URL reference
+}
+
+export interface SpellSubclass {
+    index: string;   // e.g., 'evocation'
+    name: string;    // e.g., 'School of Evocation'
+    url?: string;    // API URL reference
+}
+
+// ===== MAIN SPELL INTERFACE =====
 // Base interface for D&D 5e Spell
 export interface Spell {
     // Primary key and user association
@@ -26,7 +211,7 @@ export interface Spell {
     casting_time?: string;   // e.g., '1 action', '1 bonus action', '1 reaction', '1 minute', '10 minutes', '1 hour', '8 hours'
     duration?: string;       // e.g., 'instantaneous', '1 minute', '10 minutes', '1 hour', '8 hours', '24 hours', 'until dispelled'
     range?: string;          // e.g., 'self', 'touch', '30 feet', '60 feet', '120 feet', '10 miles'
-    attack_type?: AttackType; // e.g., 'melee', 'ranged', 'spell'
+    attack_type?: AttackType; // e.g., 'melee', 'ranged', null
 
     // Spell description and effects
     desc?: string[];         // Array of description paragraphs
@@ -55,119 +240,7 @@ export interface Spell {
     updated_at: string;      // ISO date string
 }
 
-// Spell schools enum
-export type SpellSchool =
-    | 'Abjuration'
-    | 'Conjuration'
-    | 'Divination'
-    | 'Enchantment'
-    | 'Evocation'
-    | 'Illusion'
-    | 'Necromancy'
-    | 'Transmutation';
-
-// Attack types enum
-export type AttackType =
-    | 'melee'
-    | 'ranged'
-    | 'spell';
-
-// Spell components enum
-export type SpellComponent =
-    | 'V'  // Verbal
-    | 'S'  // Somatic
-    | 'M'; // Material
-
-// Area of effect interface
-export interface AreaOfEffect {
-    type: AreaOfEffectType;
-    size?: number;       // Radius, length, width, etc.
-    radius?: number;     // For spheres, cylinders
-    length?: number;     // For lines, cones
-    width?: number;      // For lines
-    height?: number;     // For cylinders
-}
-
-// Area of effect types
-export type AreaOfEffectType =
-    | 'sphere'
-    | 'cube'
-    | 'line'
-    | 'cone'
-    | 'cylinder'
-    | 'square'
-    | 'hemisphere';
-
-// Spell damage interface
-export interface SpellDamage {
-    damage_type?: DamageType;
-    damage_at_slot_level?: { [slotLevel: string]: string }; // e.g., { "1": "3d6", "2": "4d6" }
-    damage_at_character_level?: { [characterLevel: string]: string }; // For cantrips
-}
-
-// Damage types enum
-export type DamageType =
-    | 'acid'
-    | 'bludgeoning'
-    | 'cold'
-    | 'fire'
-    | 'force'
-    | 'lightning'
-    | 'necrotic'
-    | 'piercing'
-    | 'poison'
-    | 'psychic'
-    | 'radiant'
-    | 'slashing'
-    | 'thunder';
-
-// Difficulty class interface
-export interface DifficultyClass {
-    dc_type?: AbilityScore;
-    dc_success?: DCSaveResult;
-}
-
-// DC save results enum
-export type DCSaveResult =
-    | 'none'
-    | 'half'
-    | 'other';
-
-// Healing scale interface
-export interface HealingScale {
-    [slotLevel: string]: string; // e.g., { "1": "1d4+4", "2": "2d4+4" }
-}
-
-// Spell class interface
-export interface SpellClass {
-    index: string;   // e.g., 'wizard'
-    name: string;    // e.g., 'Wizard'
-    url?: string;    // API URL reference
-}
-
-// Spell subclass interface
-export interface SpellSubclass {
-    index: string;   // e.g., 'evocation'
-    name: string;    // e.g., 'School of Evocation'
-    url?: string;    // API URL reference
-}
-
-// D&D 5e classes enum for reference
-export type DnDClass =
-    | 'barbarian'
-    | 'bard'
-    | 'cleric'
-    | 'druid'
-    | 'fighter'
-    | 'monk'
-    | 'paladin'
-    | 'ranger'
-    | 'rogue'
-    | 'sorcerer'
-    | 'warlock'
-    | 'wizard'
-    | 'artificer';
-
+// ===== SIMPLIFIED INTERFACES =====
 // Simplified spell interface for lists/tables - matches backend summary response
 export interface SpellSummary {
     id: number;
@@ -180,7 +253,8 @@ export interface SpellSummary {
     data_source?: 'srd' | 'custom'; // To distinguish between SRD and custom spells
 }
 
-// API response interfaces
+// ===== API RESPONSE INTERFACES =====
+
 export interface SpellApiResponse {
     data: Spell[];
     total: number;
@@ -192,6 +266,7 @@ export interface SpellApiResponse {
 export interface SingleSpellApiResponse {
     data: Spell;
 }
+
 
 // Form interfaces for creating/editing spells
 export interface CreateSpellRequest {

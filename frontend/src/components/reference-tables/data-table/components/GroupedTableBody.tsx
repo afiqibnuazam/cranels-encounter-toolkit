@@ -4,19 +4,19 @@ import { TableBody, TableRow, TableCell } from "@/components/ui/table";
 import { GroupHeader } from "./GroupHeader";
 
 interface GroupedTableBodyProps<TData, TValue> {
+    table: TanstackTable<TData>;
     groupedData: Record<string, TData[]>;
     expandedGroups: Set<string>;
-    toggleGroup: (groupKey: string) => void;
-    table: TanstackTable<TData>;
     columns: ColumnDef<TData, TValue>[];
+    toggleGroup: (groupKey: string) => void;
 }
 
 export function GroupedTableBody<TData, TValue>({
+    table,
     groupedData,
     expandedGroups,
-    toggleGroup,
-    table,
     columns,
+    toggleGroup,
 }: GroupedTableBodyProps<TData, TValue>) {
     return (
         <TableBody>

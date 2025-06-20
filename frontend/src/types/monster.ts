@@ -9,6 +9,10 @@ export enum MonsterSize {
     Gargantuan = 'gargantuan',
 }
 
+// export const SIZES = [
+
+// ]
+
 export enum MonsterType {
     Aberration = 'aberration',
     Beast = 'beast',
@@ -226,24 +230,6 @@ export interface MonsterConditionImmunity {
     url?: string;
 }
 
-export interface MonsterDamageVulnerability {
-    index: string;
-    name: string;
-    url?: string;
-}
-
-export interface MonsterDamageResistance {
-    index: string;
-    name: string;
-    url?: string;
-}
-
-export interface MonsterDamageImmunity {
-    index: string;
-    name: string;
-    url?: string;
-}
-
 // ===== MAIN MONSTER INTERFACE =====
 
 export interface Monster {
@@ -279,9 +265,9 @@ export interface Monster {
     proficiencies?: MonsterProficiency[];
 
     // Resistances and Immunities
-    damage_vulnerabilities?: MonsterDamageVulnerability[];
-    damage_resistances?: MonsterDamageResistance[];
-    damage_immunities?: MonsterDamageImmunity[];
+    damage_vulnerabilities?: string[];
+    damage_resistances?: string[];
+    damage_immunities?: string[];
     condition_immunities?: MonsterConditionImmunity[];
 
     // Senses and Languages
@@ -350,9 +336,9 @@ export interface CreateMonsterRequest {
     wisdom: number;
     charisma: number;
     proficiencies?: MonsterProficiency[];
-    damage_vulnerabilities?: MonsterDamageVulnerability[];
-    damage_resistances?: MonsterDamageResistance[];
-    damage_immunities?: MonsterDamageImmunity[];
+    damage_vulnerabilities?: string[];
+    damage_resistances?: string[];
+    damage_immunities?: string[];
     condition_immunities?: MonsterConditionImmunity[];
     senses?: MonsterSenses;
     languages?: string;
@@ -406,11 +392,9 @@ export function isMonsterSummary(obj: unknown): obj is MonsterSummary {
         'id' in obj &&
         'index' in obj &&
         'name' in obj &&
-        'hit_points' in obj &&
         typeof (obj as MonsterSummary).id === 'number' &&
         typeof (obj as MonsterSummary).index === 'string' &&
-        typeof (obj as MonsterSummary).name === 'string' &&
-        typeof (obj as MonsterSummary).hit_points === 'number'
+        typeof (obj as MonsterSummary).name === 'string'
     );
 }
 
@@ -433,7 +417,7 @@ export function getAbilityModifier(score: number): number {
 
 export function formatAbilityScore(score: number): string {
     const modifier = getAbilityModifier(score);
-    const sign = modifier >= 0 ? '+' : '';
+    const sign = modifier >= 0 ? '+' : '-';
     return `${score} (${sign}${modifier})`;
 }
 
@@ -479,14 +463,14 @@ export function formatSpeed(speed?: MonsterSpeed): string {
     if (!speed) return '30 ft.';
 
     const parts: string[] = [];
-    if (speed.walk) parts.push(`${speed.walk} ft.`);
+    if (speed.walk) parts.push(`${speed.walk}`);
     if (speed.fly) {
-        const flyStr = speed.hover ? `fly ${speed.fly} ft. (hover)` : `fly ${speed.fly} ft.`;
+        const flyStr = speed.hover ? `fly ${speed.fly} (hover)` : `fly ${speed.fly}`;
         parts.push(flyStr);
     }
-    if (speed.swim) parts.push(`swim ${speed.swim} ft.`);
-    if (speed.burrow) parts.push(`burrow ${speed.burrow} ft.`);
-    if (speed.climb) parts.push(`climb ${speed.climb} ft.`);
+    if (speed.swim) parts.push(`swim ${speed.swim}`);
+    if (speed.burrow) parts.push(`burrow ${speed.burrow}`);
+    if (speed.climb) parts.push(`climb ${speed.climb}`);
 
     return parts.length > 0 ? parts.join(', ') : '30 ft.';
 }
@@ -498,7 +482,8 @@ export function formatSenses(senses?: MonsterSenses): string {
     if (senses.blindsight) parts.push(`blindsight ${senses.blindsight}`);
     if (senses.darkvision) parts.push(`darkvision ${senses.darkvision}`);
     if (senses.tremorsense) parts.push(`tremorsense ${senses.tremorsense}`);
-    if (senses.truesight) parts.push(`truesight ${senses.truesight}`); if (senses[Sense.PassivePerception]) parts.push(`passive Perception ${senses[Sense.PassivePerception]}`);
+    if (senses.truesight) parts.push(`truesight ${senses.truesight}`);
+    if (senses[Sense.PassivePerception]) parts.push(`passive Perception ${senses[Sense.PassivePerception]}`);
 
     return parts.join(', ');
 }

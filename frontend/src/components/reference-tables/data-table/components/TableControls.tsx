@@ -29,27 +29,32 @@ export function TableControls<TData>({
                 }
                 className="max-w-sm rounded-none"
             />
-            <Button
-                variant="outline" 
-                className="hover:bg-secondary hover:text-primary rounded-none"
-            >
-                <ArrowDownAZ />
-            </Button>
+
             {(tab === "monsters" || tab === "characters" || tab === "spells") && (
-                <Tooltip>
-                    <TooltipTrigger asChild>
+                <>
+                    {tab !== "spells" && (
                         <Button
-                            variant={buttonProps.variant}
-                            className="hover:bg-secondary hover:text-primary cursor-pointer rounded-none"
-                            onClick={onCycleGroup}
+                            variant="outline"
+                            className="hover:bg-secondary hover:text-primary rounded-none"
                         >
-                            {buttonProps.icon}
+                            <ArrowDownAZ />
                         </Button>
-                    </TooltipTrigger>
-                    <TooltipContent>
-                        <p>{buttonProps.tooltip}</p>
-                    </TooltipContent>
-                </Tooltip>
+                    )}
+                    <Tooltip>
+                        <TooltipTrigger asChild>
+                            <Button
+                                variant={buttonProps.variant}
+                                className="hover:bg-secondary hover:text-primary cursor-pointer rounded-none"
+                                onClick={onCycleGroup}
+                            >
+                                {buttonProps.icon}
+                            </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                            <p>{buttonProps.tooltip}</p>
+                        </TooltipContent>
+                    </Tooltip>
+                </>
             )}
         </div>
     );

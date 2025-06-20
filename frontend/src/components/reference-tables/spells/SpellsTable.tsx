@@ -4,7 +4,7 @@ import { useSpells } from "@/hooks/useQueries";
 
 
 const SpellsTable = () => {
-    const { data: spells, isLoading, error } = useSpells();
+    const { allSpells: spells, isLoading, error } = useSpells();
 
     return (
         <ReferencePaneDataTable

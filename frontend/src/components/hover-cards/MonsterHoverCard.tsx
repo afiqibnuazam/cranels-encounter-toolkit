@@ -18,12 +18,12 @@ import { useMonster } from '@/hooks/useQueries';
 
 interface MonsterHoverCardProps {
     monster: MonsterSummary;
-    children?: React.ReactNode;
 }
 
-const MonsterHoverCard = ({ monster, children }: MonsterHoverCardProps) => {
+const MonsterHoverCard = ({ monster }: MonsterHoverCardProps) => {
     const [isOpen, setIsOpen] = useState(false);
     const { data: fullMonster, isLoading, error } = useMonster(monster.index, monster.data_source, isOpen);
+
 
     const formatDescription = (desc: string | string[]): string => {
         return Array.isArray(desc) ? desc.join(' ') : desc;
@@ -178,11 +178,17 @@ const MonsterHoverCard = ({ monster, children }: MonsterHoverCardProps) => {
 
     // TODO: Fix UI
     return (
-        <HoverCard open={isOpen} onOpenChange={setIsOpen}>
+        <HoverCard
+            open={isOpen} 
+            onOpenChange={setIsOpen}
+            openDelay={100}
+        >
             <HoverCardTrigger asChild>
-                {children || <Search size={18} className="hover:text-primary" />}
+                <Search size={18} className="hover:text-primary" />
             </HoverCardTrigger>
-            <HoverCardContent className="w-[400px]" >
+            <HoverCardContent
+                className="w-[400px]"
+            >
                 <ScrollArea className="h-[400px]" onWheel={(e) => e.stopPropagation()}>
                     <div className="space-y-3">
                         {/* Header */}

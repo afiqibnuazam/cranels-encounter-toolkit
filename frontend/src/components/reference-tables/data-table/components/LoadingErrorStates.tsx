@@ -10,7 +10,7 @@ export function LoadingState<TData, TValue>({ columns }: LoadingStateProps<TData
     return (
         <TableBody>
             <TableRow>
-                <TableCell colSpan={columns.length} className="h-[600px] text-center">
+                <TableCell colSpan={columns.length} className="h-[calc(100vh-264px)] text-center">
                     Loading... {/* TODO: add loader */}
                 </TableCell>
             </TableRow>
@@ -27,7 +27,7 @@ export function ErrorState<TData, TValue>({ columns, error }: ErrorStateProps<TD
     return (
         <TableBody>
             <TableRow>
-                <TableCell colSpan={columns.length} className="h-[600px] text-center text-red-500">
+                <TableCell colSpan={columns.length} className="h-[calc(100vh-264px)] text-center text-red-500">
                     {error}
                 </TableCell>
             </TableRow>

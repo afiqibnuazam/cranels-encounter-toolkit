@@ -27,37 +27,52 @@ export const queryKeys = {
 };
 
 // MONSTER HOOKS
+// export function useMonsters() {
+//     const { authToken } = useAuthentication();
+
+//     const results = useQueries({
+//         queries: [
+//             {
+//                 queryKey: ['srd-monsters'],
+//                 queryFn: () => monstersApi.getSrdMonsters(),
+//                 staleTime: 10 * 60 * 1000,
+//             },
+//             {
+//                 queryKey: ['custom-monsters', authToken],
+//                 queryFn: () => monstersApi.getCustomMonsters(authToken!),
+//                 enabled: !!authToken,
+//                 staleTime: 5 * 60 * 1000,
+//             }
+//         ]
+//     });
+
+//     const [srdQuery, customQuery] = results;
+
+//     return {
+//         data: useMemo(() => {
+//             const srdMonsters = srdQuery.data || [];
+//             const customMonsters = customQuery.data || [];
+//             return [...srdMonsters, ...customMonsters].sort((a, b) => a.name.localeCompare(b.name));
+//         }, [srdQuery.data, customQuery.data]),
+
+//         isLoading: results.some(result => result.isLoading),
+//         error: results.find(result => result.error)?.error || null,
+//         isError: results.some(result => result.isError),
+//     };
+// }
 export function useMonsters() {
     const { authToken } = useAuthentication();
-
-    const results = useQueries({
-        queries: [
-            {
-                queryKey: ['srd-monsters'],
-                queryFn: () => monstersApi.getSrdMonsters(),
-                staleTime: 10 * 60 * 1000,
-            },
-            {
-                queryKey: ['custom-monsters', authToken],
-                queryFn: () => monstersApi.getCustomMonsters(authToken!),
-                enabled: !!authToken,
-                staleTime: 5 * 60 * 1000,
-            }
-        ]
+    
+    const query = useQuery({
+        queryKey: ["get-monsters", authToken],
+        queryFn: () => monstersApi.getAllMonsters(authToken || undefined),
+        staleTime: 10 * 60 * 1000, // 10 minutes
     });
 
-    const [srdQuery, customQuery] = results;
-
     return {
-        data: useMemo(() => {
-            const srdMonsters = srdQuery.data || [];
-            const customMonsters = customQuery.data || [];
-            return [...srdMonsters, ...customMonsters].sort((a, b) => a.name.localeCompare(b.name));
-        }, [srdQuery.data, customQuery.data]),
-
-        isLoading: results.some(result => result.isLoading),
-        error: results.find(result => result.error)?.error || null,
-        isError: results.some(result => result.isError),
+        allMonsters: query.data || [],
+        isLoading: query.isLoading,
+        error: query.error,
     };
 }
 
@@ -89,34 +104,16 @@ export function useMonster(
 export function useSpells() {
     const { authToken } = useAuthentication();
 
-    const results = useQueries({
-        queries: [
-            {
-                queryKey: ['srd-spells'],
-                queryFn: () => spellsApi.getSrdSpells(),
-                staleTime: 10 * 60 * 1000,
-            },
-            {
-                queryKey: ['custom-monsters', authToken],
-                queryFn: () => spellsApi.getCustomSpells(authToken!),
-                enabled: !!authToken,
-                staleTime: 5 * 60 * 1000,
-            }
-        ]
+    const query = useQuery({
+        queryKey: ["get-spells", authToken],
+        queryFn: () => spellsApi.getAllSpells(authToken || undefined),
+        staleTime: 10 * 60 * 1000, // 10 minutes
     });
 
-    const [srdQuery, customQuery] = results;
-
     return {
-        data: useMemo(() => {
-            const srdSpells = srdQuery.data || [];
-            const customSpells = customQuery.data || [];
-            return [...srdSpells, ...customSpells].sort((a, b) => a.name.localeCompare(b.name));
-        }, [srdQuery.data, customQuery.data]),
-
-        isLoading: results.some(result => result.isLoading),
-        error: results.find(result => result.error)?.error || null,
-        isError: results.some(result => result.isError),
+        allSpells: query.data || [],
+        isLoading: query.isLoading,
+        error: query.error,
     };
 }
 

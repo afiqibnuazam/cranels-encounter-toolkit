@@ -3,11 +3,12 @@
 namespace App\Models;
 
 use App\Enums\UnitType;
-use Illuminate\Database\Eloquent\Attributes\Scope;
-use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Database\Eloquent\Model;
 use Spatie\MediaLibrary\HasMedia;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Builder;
 use Spatie\MediaLibrary\InteractsWithMedia;
+use Illuminate\Database\Eloquent\Attributes\Scope;
+use Spatie\MediaLibrary\MediaCollections\Models\Media;
 
 class Unit extends Model implements HasMedia
 {
@@ -109,6 +110,16 @@ class Unit extends Model implements HasMedia
     protected function scopeOfTypes($query, array $types): Builder
     {
         return $query->whereIn('unit_type', $types);
+    }
+
+
+    public function registerMediaConversions(Media $media = null): void
+    {
+        $this->addMediaConversion('thumb')
+            ->width(300)
+            ->height(300)
+            ->sharpen(10)
+            ->performOnCollections('avatar');
     }
     
 

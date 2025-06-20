@@ -25,7 +25,7 @@ return new class extends Migration
             $table->string('casting_time')->nullable(); // e.g., '1 action', '1 bonus action', '1 reaction', '1 minute', '10 minutes', '1 hour', '8 hours'
             $table->string('duration')->nullable();     // e.g., 'instantaneous', '1 minute', '10 minutes', '1 hour', '8 hours', '24 hours', 'until dispelled'
             $table->string('range')->nullable();        // e.g., 'self', 'touch', '30 feet', '60 feet', '120 feet', '10 miles'
-            $table->string(column: 'attack_type')->nullable();  // e.g., 'melee', 'ranged', 'spell'
+            $table->string(column: 'attack_type')->nullable();  // e.g., 'melee', 'ranged'
             
             // JSON fields
             $table->json('desc')->nullable();               // Paragraphs of text

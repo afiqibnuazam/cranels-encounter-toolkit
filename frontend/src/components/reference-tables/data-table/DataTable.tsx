@@ -1,6 +1,6 @@
 "use client"
 
-import React from "react"
+import React, { useRef } from "react"
 import {
     ColumnFiltersState,
     getCoreRowModel,
@@ -22,6 +22,7 @@ import { TableControls } from "./components/TableControls"
 import { ErrorState, LoadingState } from "./components/LoadingErrorStates"
 import { GroupedTableBody } from "./components/GroupedTableBody"
 import { UngroupedTableBody } from "./components/UngroupedTableBody"
+import { VirtualizedTableBody } from "./components/VirtualizedTableBody"
 
 
 export function ReferencePaneDataTable<TData, TValue>({
@@ -30,16 +31,27 @@ export function ReferencePaneDataTable<TData, TValue>({
     loading = false,
     error = null,
     tab,
+    activeTab,
+    // New infinite scroll props
+    hasNextPage,
+    fetchNextPage,
+    isFetchingNextPage,
+    enableVirtualization = false,
 }: DataTableProps<TData, TValue>) {
     // State management
     const [sorting, setSorting] = useState<SortingState>([])
     const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([])
+
+    // Ref for scroll container (needed for virtualization)
+    const scrollAreaRef = useRef<HTMLDivElement>(null)
 
     // Custom hooks
     const { groupState, cycleGroupState, buttonProps } = useGroupingButton(tab)
     const groupedData = useDataGrouping(data, groupState, columnFilters)
     const { expandedGroups, toggleGroup } = useGroupExpansion(groupedData)
 
+    // Determine if we should use virtualization
+    const shouldUseVirtualization = enableVirtualization && data.length >= 50;
 
     const table = useReactTable({
         data,
@@ -63,20 +75,31 @@ export function ReferencePaneDataTable<TData, TValue>({
                 buttonProps={buttonProps}
                 onCycleGroup={cycleGroupState}
             />
-            <ScrollArea className="h-[calc(100vh-264px)]"> {/* TODO: make the height dynamic to screen size */}
+            <ScrollArea ref={scrollAreaRef} className="h-[calc(100vh-264px)]">
                 <div className="border">
                     <Table>
                         {loading ? (
                             <LoadingState columns={columns} />
                         ) : error ? (
                             <ErrorState columns={columns} error={error} />
+                        ) : shouldUseVirtualization && !groupedData ? (
+                            // Use virtualized table body for large datasets without grouping
+                            <VirtualizedTableBody
+                                key={`${tab}-${activeTab}`}
+                                visibleKey={activeTab}
+                                table={table}
+                                hasNextPage={hasNextPage}
+                                fetchNextPage={fetchNextPage}
+                                isFetchingNextPage={isFetchingNextPage}
+                                parentRef={scrollAreaRef}
+                            />
                         ) : groupedData ? (
                             <GroupedTableBody
+                                table={table}
                                 groupedData={groupedData}
                                 expandedGroups={expandedGroups}
-                                toggleGroup={toggleGroup}
-                                table={table}
                                 columns={columns}
+                                toggleGroup={toggleGroup}
                             />
                         ) : (
                             <UngroupedTableBody table={table} />

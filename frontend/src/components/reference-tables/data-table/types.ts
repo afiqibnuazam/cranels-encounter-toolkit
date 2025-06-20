@@ -9,6 +9,12 @@ export interface DataTableProps<TData, TValue> {
     loading?: boolean
     error?: string | null
     tab: ReferencePaneTab
+    activeTab?: string
+    // New infinite scroll props
+    hasNextPage?: boolean;
+    fetchNextPage?: () => void;
+    isFetchingNextPage?: boolean;
+    enableVirtualization?: boolean;
 }
 
 export interface ButtonConfig {
