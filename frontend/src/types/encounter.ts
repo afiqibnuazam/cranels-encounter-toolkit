@@ -1,12 +1,15 @@
 // Encounter type definitions for the D&D 5e Encounter Toolkit
 
+export type EncounterStatus = 'draft' | 'active' | 'completed';
+
 export interface EncounterSummary {
   id: number;
-  index: string;
   name: string;
-  description?: string;
-  difficulty?: 'easy' | 'medium' | 'hard' | 'deadly';
-  status?: 'draft' | 'active' | 'completed';
+  folder_name?: string;
+  notes?: string;
+  current_turn_id?: number;
+  current_round: number;
+  status: EncounterStatus;
   created_at?: string;
   updated_at?: string;
 }

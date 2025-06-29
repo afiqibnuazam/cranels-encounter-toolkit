@@ -249,8 +249,8 @@ export interface SpellSummary {
     level: number;
     school?: SpellSchool;
     source?: string;
-    tags?: string[]; // For filtering
     data_source?: 'srd' | 'custom'; // To distinguish between SRD and custom spells
+    tags?: string[]; // For filtering
 }
 
 // ===== API RESPONSE INTERFACES =====
