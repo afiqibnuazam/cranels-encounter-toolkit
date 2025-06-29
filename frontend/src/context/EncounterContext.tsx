@@ -1,38 +1,56 @@
 "use client"
 
-import { createContext, useContext, useReducer, ReactNode } from 'react';
+import { createContext, useContext, useReducer, useEffect, ReactNode, useState } from 'react';
 import { useAuthentication } from './AuthenticationContext';
+import { EncounterStatus, UnitType } from '@/types';
+import { useCreateEncounter } from '@/hooks/useMutations';
+import { getAbilityModifier } from '@/types/monster';
+
+// Utility function to generate index from name
+function generateIndexFromName(name: string): string {
+    return name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
+}
 
 // Types - Keep local state simple, add DB fields when saving
-export interface LocalCombatant {
-    id: string; // Use UUID for local state (crypto.randomUUID())
-    index?: string;
+export interface Combatant {
+    id?: number; // Database ID - only assigned when saved to backend
+    encounter_id?: number; // Only set when saved to DB
+    
+    index: string; // Primary identifier - generated from name
     initiative: number;
     name: string;
     current_hit_points: number;
     max_hit_points: number;
-    temporary_hit_points: number; // Default to 0
-    armor_class: string;
-    unit_type?: 'monster' | 'player_character' | 'allied_npc' | 'enemy_npc'; // Optional, for filtering
-    // Add source info for when we save to DB
+    temporary_hit_points: number;
+    armor_class: number;
+    
+    // Combat state tracking
+    used_spell_slots?: Record<string, number>;
+    action_used?: boolean;
+    bonus_action_used?: boolean;
+    reaction_used?: boolean;
+    legendary_actions_used?: number;
+    effects?: Effect[];
+    
+    // From the related Monster/Unit
+    unit_type: UnitType;
     source_type?: 'srd' | 'custom';
-    source_id?: number; // Reference to monster/character if applicable
-    // Ability scores for initiative calculations
-    dexterity?: number; // Dexterity score for initiative modifier
+    source_id?: number;
+    dexterity?: number;
 }
 
-interface DatabaseCombatant extends Omit<LocalCombatant, 'id'> {
-    // Additional fields needed when saving to database
-    id: number; // Database ID (different from local UUID)
-    encounter_id: number;
-    combatantable_type: string;
-    combatantable_id: number;
+// Additional interfaces for the combat data
+interface Effect {
+    id: number;
+    name: string;
+    desc?: string;
+    concentration: boolean;
+    duration?: number;
+    condition_id?: number;
 }
-
-type EncounterStatus = 'draft' | 'active' | 'completed';
 
 interface EncounterState {
-    combatants: LocalCombatant[];
+    combatants: Combatant[];
     isRunning: boolean;
     currentTurn: number;
     round: number;
@@ -45,10 +63,11 @@ interface EncounterState {
 }
 
 type EncounterAction =
-    | { type: 'ADD_COMBATANT'; payload: LocalCombatant }
-    | { type: 'REMOVE_COMBATANT'; payload: string } // Using local UUID
-    | { type: 'UPDATE_COMBATANT'; payload: { id: string; updates: Partial<LocalCombatant> } }
-    | { type: 'UPDATE_INITIATIVES'; payload: { id: string; initiative: number }[] }
+    | { type: 'ADD_COMBATANT'; payload: Combatant }
+    | { type: 'REMOVE_COMBATANT'; payload: string } // Using index
+    | { type: 'UPDATE_COMBATANT'; payload: { index: string; updates: Partial<Combatant> } }
+    | { type: 'UPDATE_INITIATIVES'; payload: { index: string; initiative: number }[] }
+    | { type: 'REORDER_COMBATANTS'; payload: { fromIndex: number; toIndex: number } }
     | { type: 'START_ENCOUNTER' }
     | { type: 'END_ENCOUNTER' }
     | { type: 'NEXT_TURN' }
@@ -56,7 +75,8 @@ type EncounterAction =
     | { type: 'RESET_ENCOUNTER' }
     | { type: 'RESET_TO_DRAFT' }
     | { type: 'SET_SELECTED_COMBATANT'; payload: string | undefined }
-    | { type: 'CLEAR_SELECTED_COMBATANT' };
+    | { type: 'CLEAR_SELECTED_COMBATANT' }
+    | { type: 'LOAD_FROM_STORAGE'; payload: EncounterState };
 
 // Initial state
 const initialState: EncounterState = {
@@ -87,7 +107,7 @@ function encounterReducer(state: EncounterState, action: EncounterAction): Encou
         case 'REMOVE_COMBATANT':
             return {
                 ...state,
-                combatants: state.combatants.filter(c => c.id !== action.payload),
+                combatants: state.combatants.filter(c => c.index !== action.payload),
                 isSaved: false
             };
 
@@ -95,7 +115,7 @@ function encounterReducer(state: EncounterState, action: EncounterAction): Encou
             return {
                 ...state,
                 combatants: state.combatants.map(c =>
-                    c.id === action.payload.id
+                    c.index === action.payload.index
                         ? { ...c, ...action.payload.updates }
                         : c
                 ),
@@ -106,15 +126,52 @@ function encounterReducer(state: EncounterState, action: EncounterAction): Encou
             return {
                 ...state,
                 combatants: state.combatants.map(c => {
-                    const initiativeUpdate = action.payload.find(update => update.id === c.id);
+                    const initiativeUpdate = action.payload.find(update => update.index === c.index);
                     return initiativeUpdate ? { ...c, initiative: initiativeUpdate.initiative } : c;
                 }),
                 isSaved: false
             };
 
+        case 'REORDER_COMBATANTS':
+            const newCombatants = [...state.combatants];
+            const [movedCombatant] = newCombatants.splice(action.payload.fromIndex, 1);
+            newCombatants.splice(action.payload.toIndex, 0, movedCombatant);
+
+            // Adjust currentTurn if encounter is running
+            let newCurrentTurn = state.currentTurn;
+            if (state.isRunning) {
+                const currentCombatantIndex = state.combatants[state.currentTurn]?.index;
+                if (currentCombatantIndex) {
+                    newCurrentTurn = newCombatants.findIndex(c => c.index === currentCombatantIndex);
+                }
+            }
+
+            return {
+                ...state,
+                combatants: newCombatants,
+                currentTurn: newCurrentTurn,
+                isSaved: false
+            };
+
         case 'START_ENCOUNTER':
-            // Sort by initiative (descending)
-            const sortedCombatants = [...state.combatants].sort((a, b) => b.initiative - a.initiative);
+            // Sort by initiative (descending), with dexterity modifier as tiebreaker
+            const sortedCombatants = [...state.combatants].sort((a, b) => {
+                // First, compare initiative values
+                if (b.initiative !== a.initiative) {
+                    return b.initiative - a.initiative;
+                }
+                
+                // If initiative is tied, compare dexterity modifiers
+                const aDexMod = getAbilityModifier(a.dexterity || 10);
+                const bDexMod = getAbilityModifier(b.dexterity || 10);
+                
+                if (bDexMod !== aDexMod) {
+                    return bDexMod - aDexMod;
+                }
+                
+                // If both initiative and dex modifier are tied, maintain original order
+                return 0;
+            });
             return {
                 ...state,
                 combatants: sortedCombatants,
@@ -178,14 +235,86 @@ function encounterReducer(state: EncounterState, action: EncounterAction): Encou
                 selectedCombatantId: undefined
             };
 
+        case 'LOAD_FROM_STORAGE':
+            return action.payload;
+
         default:
             return state;
+    }
+}
+
+// localStorage key
+const ENCOUNTER_STORAGE_KEY = 'cranels-encounter-state';
+
+// Load state from localStorage
+function loadStateFromStorage(): EncounterState {
+    if (typeof window === 'undefined') return initialState;
+    
+    try {
+        const stored = localStorage.getItem(ENCOUNTER_STORAGE_KEY);
+        if (stored) {
+            const parsed = JSON.parse(stored);
+            // Validate the structure and merge with defaults
+            return {
+                ...initialState,
+                ...parsed,
+                // Ensure indexes are strings and regenerate if missing
+                combatants: (parsed.combatants || []).map((c: Combatant) => ({
+                    ...c,
+                    index: c.index || generateIndexFromName(c.name)
+                }))
+            };
+        }
+    } catch (error) {
+        console.warn('Failed to load encounter from localStorage:', error);
+    }
+    
+    return initialState;
+}
+
+// Save state to localStorage
+function saveStateToStorage(state: EncounterState) {
+    if (typeof window === 'undefined') return;
+    
+    try {
+        localStorage.setItem(ENCOUNTER_STORAGE_KEY, JSON.stringify(state));
+    } catch (error) {
+        console.warn('Failed to save encounter to localStorage:', error);
+    }
+}
+
+// Clear localStorage
+function clearStoredState() {
+    if (typeof window === 'undefined') return;
+    
+    try {
+        localStorage.removeItem(ENCOUNTER_STORAGE_KEY);
+    } catch (error) {
+        console.warn('Failed to clear stored encounter:', error);
     }
 }
 
 // Provider component
 export function EncounterProvider({ children }: { children: ReactNode }) {
     const [state, dispatch] = useReducer(encounterReducer, initialState);
+    const [isHydrated, setIsHydrated] = useState(false);
+
+    // Load from localStorage after hydration
+    useEffect(() => {
+        const storedState = loadStateFromStorage();
+        if (storedState !== initialState) {
+            // If there's stored data, load it
+            dispatch({ type: 'LOAD_FROM_STORAGE', payload: storedState });
+        }
+        setIsHydrated(true);
+    }, []);
+
+    // Auto-save to localStorage whenever state changes (but only after hydration)
+    useEffect(() => {
+        if (isHydrated) {
+            saveStateToStorage(state);
+        }
+    }, [state, isHydrated]);
 
     return (
         <EncounterStateContext.Provider value={state}>
@@ -218,8 +347,9 @@ export function useEncounter() {
     const state = useEncounterState();
     const dispatch = useEncounterDispatch();
     const { authToken } = useAuthentication(); // Your auth context
+    const saveEncounterMutation = useCreateEncounter();
 
-    const addCombatant = (combatant: Omit<LocalCombatant, 'id'>) => {
+    const addCombatant = (combatant: Omit<Combatant, 'index'>) => {
         let finalName = combatant.name;
 
         // Check for uniqueness - characters, allied NPCs, and enemy NPCs should only appear once
@@ -241,7 +371,7 @@ export function useEncounter() {
                 return; // Don't add duplicate unique units
             }
         } else {
-            // For monsters and NPCs, handle duplicate naming with numbering
+            // For monsters, handle duplicate naming with numbering
             const baseName = combatant.name;
             const escapedBaseName = baseName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
@@ -253,11 +383,15 @@ export function useEncounter() {
             if (relatedCombatants.length > 0) {
                 // If this is the second instance (first duplicate), rename the existing one to "Name 1"
                 if (relatedCombatants.length === 1 && relatedCombatants[0].name === baseName) {
+                    const newName1 = `${baseName} 1`;
                     dispatch({
                         type: 'UPDATE_COMBATANT',
                         payload: {
-                            id: relatedCombatants[0].id,
-                            updates: { name: `${baseName} 1` }
+                            index: relatedCombatants[0].index,
+                            updates: { 
+                                name: newName1,
+                                index: generateIndexFromName(newName1)
+                            }
                         }
                     });
                     finalName = `${baseName} 2`;
@@ -279,25 +413,29 @@ export function useEncounter() {
             }
         }
 
-        const newCombatant: LocalCombatant = {
+        const newCombatant: Combatant = {
             ...combatant,
             name: finalName,
-            id: crypto.randomUUID(), // Generate UUID for local state
+            index: generateIndexFromName(finalName), // Generate index from final name
             temporary_hit_points: combatant.temporary_hit_points || 0
         };
         dispatch({ type: 'ADD_COMBATANT', payload: newCombatant });
     };
 
-    const removeCombatant = (id: string) => {
-        dispatch({ type: 'REMOVE_COMBATANT', payload: id });
+    const removeCombatant = (index: string) => {
+        dispatch({ type: 'REMOVE_COMBATANT', payload: index });
     };
 
-    const updateCombatant = (id: string, updates: Partial<LocalCombatant>) => {
-        dispatch({ type: 'UPDATE_COMBATANT', payload: { id, updates } });
+    const updateCombatant = (index: string, updates: Partial<Combatant>) => {
+        dispatch({ type: 'UPDATE_COMBATANT', payload: { index, updates } });
     };
 
-    const updateInitiatives = (initiatives: { id: string; initiative: number }[]) => {
+    const updateInitiatives = (initiatives: { index: string; initiative: number }[]) => {
         dispatch({ type: 'UPDATE_INITIATIVES', payload: initiatives });
+    };
+
+    const reorderCombatants = (fromIndex: number, toIndex: number) => {
+        dispatch({ type: 'REORDER_COMBATANTS', payload: { fromIndex, toIndex } });
     };
 
     const startEncounter = () => {
@@ -313,7 +451,7 @@ export function useEncounter() {
     };
 
     // Save encounter to database
-    const saveEncounter = async (encounterName: string) => {
+    const saveEncounter = async (saveData: { name: string; notes?: string; folder_name?: string }) => {
         if (!authToken) {
             throw new Error('Must be logged in to save encounter');
         }
@@ -321,35 +459,35 @@ export function useEncounter() {
         try {
             // Convert local combatants to database format
             const dbCombatants = state.combatants.map(combatant => ({
+                index: combatant.index,
+                unit_type: combatant.unit_type,
                 initiative: combatant.initiative,
                 name: combatant.name,
                 current_hit_points: combatant.current_hit_points,
                 max_hit_points: combatant.max_hit_points,
-                temporary_hit_points: combatant.temporary_hit_points,
+                temporary_hit_points: combatant.temporary_hit_points || 0,
                 armor_class: combatant.armor_class,
+                used_spell_slots: combatant.used_spell_slots,
+                action_used: combatant.action_used,
+                bonus_action_used: combatant.bonus_action_used,
+                reaction_used: combatant.reaction_used,
+                legendary_actions_used: combatant.legendary_actions_used,
                 // Map to polymorphic relationship
                 combatantable_type: combatant.source_type === 'srd' ? 'App\\Models\\SrdMonster' : 'App\\Models\\Unit',
                 combatantable_id: combatant.source_id || null,
             }));
 
-            // API call to save encounter
-            const response = await fetch('/api/encounters', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${authToken}`
-                },
-                body: JSON.stringify({
-                    name: encounterName,
-                    status: state.status, // Include current status
-                    current_round: state.round,
-                    combatants: dbCombatants
-                })
-            });
+            const encounterData = {
+                name: saveData.name,
+                notes: saveData.notes,
+                folder_name: saveData.folder_name,
+                status: state.status,
+                current_round: state.round,
+                current_turn_index: state.isRunning && state.combatants.length > 0 ? state.combatants[state.currentTurn]?.index : null,
+                combatants: dbCombatants
+            };
 
-            if (!response.ok) throw new Error('Failed to save encounter');
-
-            const savedEncounter = await response.json();
+            const savedEncounter = await saveEncounterMutation.mutateAsync(encounterData);
             dispatch({ type: 'MARK_AS_SAVED', payload: { encounterId: savedEncounter.id } });
 
             return savedEncounter;
@@ -361,6 +499,7 @@ export function useEncounter() {
 
     const resetEncounter = () => {
         dispatch({ type: 'RESET_ENCOUNTER' });
+        clearStoredState(); // Clear localStorage when resetting
     };
 
     const resetToDraft = () => {
@@ -375,12 +514,94 @@ export function useEncounter() {
         dispatch({ type: 'CLEAR_SELECTED_COMBATANT' });
     };
 
+    // TODO: transfer to useQueries.ts
+    const useSpellSlot = async (combatantIndex: string, spellLevel: number) => {
+        try {
+            // For now, only update local state until backend is saved
+            const combatant = state.combatants.find(c => c.index === combatantIndex);
+            if (!combatant) return;
+
+            // If combatant is saved to DB and has an ID, call API
+            if (combatant.id) {
+                const response = await fetch(`/api/combatants/${combatant.id}/use-spell-slot`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ spell_level: spellLevel })
+                });
+                
+                if (!response.ok) {
+                    console.error('Failed to update spell slot on server');
+                    return;
+                }
+            }
+
+            // Update local state
+            dispatch({
+                type: 'UPDATE_COMBATANT',
+                payload: {
+                    index: combatantIndex,
+                    updates: {
+                        used_spell_slots: {
+                            ...combatant.used_spell_slots,
+                            [spellLevel.toString()]: (combatant.used_spell_slots?.[spellLevel.toString()] || 0) + 1
+                        }
+                    }
+                }
+            });
+        } catch (error) {
+            console.error('Failed to use spell slot:', error);
+        }
+    };
+
+    // TODO: transfer to useQueries.ts
+    const restoreSpellSlot = async (combatantIndex: string, spellLevel: number) => {
+        try {
+            // For now, only update local state until backend is saved
+            const combatant = state.combatants.find(c => c.index === combatantIndex);
+            if (!combatant) return;
+
+            // If combatant is saved to DB and has an ID, call API
+            if (combatant.id) {
+                const response = await fetch(`/api/combatants/${combatant.id}/restore-spell-slot`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ spell_level: spellLevel })
+                });
+                
+                if (!response.ok) {
+                    console.error('Failed to update spell slot on server');
+                    return;
+                }
+            }
+
+            // Update local state
+            const currentUsed = combatant.used_spell_slots?.[spellLevel.toString()] || 0;
+            if (currentUsed > 0) {
+                dispatch({
+                    type: 'UPDATE_COMBATANT',
+                    payload: {
+                        index: combatantIndex,
+                        updates: {
+                            used_spell_slots: {
+                                ...combatant.used_spell_slots,
+                                [spellLevel.toString()]: currentUsed - 1
+                            }
+                        }
+                    }
+                });
+            }
+        } catch (error) {
+            console.error('Failed to restore spell slot:', error);
+        }
+    };
+
     return {
         ...state,
         addCombatant,
         removeCombatant,
         updateCombatant,
         updateInitiatives,
+        reorderCombatants,
         startEncounter,
         nextTurn,
         endEncounter,
@@ -390,6 +611,8 @@ export function useEncounter() {
         setSelectedCombatant,
         clearSelectedCombatant,
         canSave: !state.isSaved && state.combatants.length > 0,
-        needsAuth: !authToken && !state.isSaved
+        needsAuth: !authToken && !state.isSaved,
+        useSpellSlot,
+        restoreSpellSlot,
     };
 }

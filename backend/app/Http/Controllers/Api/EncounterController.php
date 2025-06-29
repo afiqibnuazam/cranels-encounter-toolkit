@@ -3,11 +3,14 @@
 namespace App\Http\Controllers\Api;
 
 use App\Models\Encounter;
+use App\Models\Combatant;
 use Illuminate\Http\Request;
 use App\Enums\EncounterStatus;
+use App\Enums\UnitType;
 use Illuminate\Validation\Rule;
 use App\Http\Controllers\Controller;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 
 class EncounterController extends Controller
 {
@@ -36,6 +39,21 @@ class EncounterController extends Controller
     }
 
     /**
+     * Get unique folder names for the authenticated user.
+     */
+    public function folders(Request $request)
+    {
+        $folders = Encounter::where('user_id', $request->user()->id)
+            ->whereNotNull('folder_name')
+            ->distinct()
+            ->pluck('folder_name')
+            ->sort()
+            ->values();
+
+        return response()->json($folders);
+    }
+
+    /**
      * Store a newly created resource in storage.
      */
     public function store(Request $request)
@@ -44,17 +62,102 @@ class EncounterController extends Controller
             'name'          => 'required|string',
             'folder_name'   => 'nullable|string',
             'notes'         => 'nullable|string',
+            'status'        => ['sometimes', Rule::enum(EncounterStatus::class)],
+            'current_round' => 'sometimes|integer|min:0',
+            'current_turn_index' => 'sometimes|string|nullable',
+            'combatants'    => 'sometimes|array',
+            'combatants.*.index' => 'required|string',
+            'combatants.*.unit_type' => ['required', Rule::enum(UnitType::class)],
+            'combatants.*.initiative' => 'required|integer',
+            'combatants.*.name' => 'required|string',
+            'combatants.*.current_hit_points' => 'required|integer|min:0',
+            'combatants.*.max_hit_points' => 'required|integer|min:1',
+            'combatants.*.temporary_hit_points' => 'sometimes|integer|min:0',
+            'combatants.*.armor_class' => 'required|integer|min:1',
+            'combatants.*.used_spell_slots' => 'sometimes|array',
+            'combatants.*.action_used' => 'sometimes|boolean',
+            'combatants.*.bonus_action_used' => 'sometimes|boolean',
+            'combatants.*.reaction_used' => 'sometimes|boolean',
+            'combatants.*.legendary_actions_used' => 'sometimes|integer|min:0',
+            'combatants.*.combatantable_type' => 'sometimes|string|nullable',
+            'combatants.*.combatantable_id' => 'sometimes|integer|nullable',
         ]);
 
-        $data['user_id']    = Auth::id();
-        $data['status']     = EncounterStatus::Draft;
+        DB::beginTransaction();
+        try {
+            $encounterData = [
+                'user_id' => Auth::id(),
+                'name' => $data['name'],
+                'folder_name' => $data['folder_name'] ?? null,
+                'current_round' => $data['current_round'] ?? 1,
+                'notes' => $data['notes'] ?? null,
+                'status' => $data['status'] ?? EncounterStatus::Draft,
+                // current_turn_id will be set after combatants are created
+            ];
 
-        Encounter::create($data);
+            $encounter = Encounter::create($encounterData);
 
-        return response()->json([
-            'status' => true,
-            'message' => 'Encounter created successfully',
-        ]);
+            // Create combatants if provided
+            if (isset($data['combatants']) && is_array($data['combatants'])) {
+                $currentTurnCombatant = null;
+                
+                foreach ($data['combatants'] as $combatantData) {
+                    $combatant = new Combatant([
+                        'encounter_id' => $encounter->id,
+                        'index' => $combatantData['index'],
+                        'unit_type' => $combatantData['unit_type'],
+                        'initiative' => $combatantData['initiative'],
+                        'name' => $combatantData['name'],
+                        'current_hit_points' => $combatantData['current_hit_points'],
+                        'max_hit_points' => $combatantData['max_hit_points'],
+                        'temporary_hit_points' => $combatantData['temporary_hit_points'] ?? 0,
+                        'armor_class' => $combatantData['armor_class'],
+                        'used_spell_slots' => $combatantData['used_spell_slots'] ?? [],
+                        'action_used' => $combatantData['action_used'] ?? false,
+                        'bonus_action_used' => $combatantData['bonus_action_used'] ?? false,
+                        'reaction_used' => $combatantData['reaction_used'] ?? false,
+                        'legendary_actions_used' => $combatantData['legendary_actions_used'] ?? 0,
+                    ]);
+
+                    // Set polymorphic relationship if provided
+                    if (isset($combatantData['combatantable_type']) && isset($combatantData['combatantable_id'])) {
+                        $combatant->combatantable_type = $combatantData['combatantable_type'];
+                        $combatant->combatantable_id = $combatantData['combatantable_id'];
+                    }
+
+                    $combatant->save();
+                    
+                    // Track which combatant should be the current turn
+                    if (isset($data['current_turn_index']) && $combatantData['index'] === $data['current_turn_index']) {
+                        $currentTurnCombatant = $combatant;
+                    }
+                }
+                
+                // Set the current turn if we found the matching combatant
+                if ($currentTurnCombatant) {
+                    $encounter->current_turn_id = $currentTurnCombatant->id;
+                    $encounter->save();
+                }
+            }
+
+            DB::commit();
+
+            // Load the encounter with combatants for response
+            $encounter->load('combatants');
+
+            return response()->json([
+                'status' => true,
+                'message' => 'Encounter created successfully',
+                'data' => $encounter,
+            ]);
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json([
+                'status' => false,
+                'message' => 'Failed to create encounter: ' . $e->getMessage(),
+            ], 500);
+        }
     }
 
     /**
@@ -62,12 +165,16 @@ class EncounterController extends Controller
      */
     public function show(string $id, Request $request)
     {
-        $encounter = Encounter::with('combatants')
+        $encounter = Encounter::with(['combatants', 'currentTurn'])
             ->where('user_id', $request->user()->id)
             ->where('id', $id)
             ->firstOrFail();
 
-        return response()->json($encounter);
+        // Add current turn index for frontend compatibility
+        $encounterData = $encounter->toArray();
+        $encounterData['current_turn_index'] = $encounter->currentTurn?->index ?? null;
+
+        return response()->json($encounterData);
     }
 
     /**
@@ -84,6 +191,7 @@ class EncounterController extends Controller
             'folder_name'   => 'nullable|string',
             'notes'         => 'nullable|string',
             'status'        => ['sometimes', Rule::enum(EncounterStatus::class)],
+            'current_round' => 'sometimes|integer|min:0',
         ]);
 
         $encounter->update($data);
@@ -91,6 +199,7 @@ class EncounterController extends Controller
         return response()->json([
             'status' => true,
             'message' => 'Encounter updated successfully',
+            'data' => $encounter,
         ]);
     }
 

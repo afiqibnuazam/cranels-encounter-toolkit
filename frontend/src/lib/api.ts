@@ -32,7 +32,17 @@ async function apiRequest<T>(
         throw new Error(`Failed to fetch data from ${endpoint}: ${response.statusText}`);
     }
 
-    return response.json();
+    const data = await response.json();
+    
+    // Handle Laravel API response format for mutations
+    if (options?.method && options.method !== 'GET' && data.status !== undefined) {
+        if (!data.status) {
+            throw new Error(data.message || 'API request failed');
+        }
+        return data.data || data;
+    }
+    
+    return data;
 }
 
 // Pagination Types
@@ -197,6 +207,10 @@ export const charactersApi = {
         return apiRequest<Character[]>('/characters', { authToken });
     },
 
+    getById: (index: string, authToken: string): Promise<Character> => {
+        return apiRequest<Character>(`/characters/${index}`, { authToken });
+    },
+
     // MUTATION FUNCTIONS
     createCharacter: (characterData: Partial<Character>, authToken: string): Promise<Character> => {
         return apiRequest<Character>('/characters', {
@@ -226,6 +240,10 @@ export const charactersApi = {
 export const encountersApi = {
     getAll: (authToken: string): Promise<Encounter[]> => {
         return apiRequest<Encounter[]>('/encounters', { authToken });
+    },
+
+    getFolderNames: (authToken: string): Promise<string[]> => {
+        return apiRequest<string[]>('/encounters/folders', { authToken });
     },
 
     // MUTATION FUNCTIONS

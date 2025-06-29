@@ -1,5 +1,5 @@
 import { HydrationBoundary, QueryClient, dehydrate } from "@tanstack/react-query";
-import { prefetchInfiniteMonsters, prefetchMonsters, prefetchSpells } from "@/lib/prefetch";
+import { prefetchInfiniteMonsters, prefetchSpells } from "@/lib/prefetch";
 import HomeClient from "./HomeClient";
 
 export default async function Home() {

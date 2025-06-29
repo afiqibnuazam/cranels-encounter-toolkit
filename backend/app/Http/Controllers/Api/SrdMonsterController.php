@@ -76,7 +76,13 @@ class SrdMonsterController extends Controller
 
     public function show(string $index)
     {
-        $monster = SrdMonster::where('index', $index)->firstOrFail();
+        $monster = SrdMonster::with([
+            'spellcastingProfiles.srdSpells',
+            'spellcastingProfiles.spells'
+        ])->where('index', $index)->firstOrFail();
+        
+        // Ensure image_url accessor is included in the response
+        $monster->append('image_url');
 
         return response()->json($monster);
     }

@@ -16,7 +16,7 @@ export async function prefetchInfiniteMonsters(queryClient: QueryClient, authTok
         queryKey: ["monsters-infinite", authToken],
         queryFn: () => monstersApi.getMonstersInfinite({ page: 0, per_page: 50 }, authToken),
         initialPageParam: 0,
-        getNextPageParam: (lastPage) => lastPage.next_page,
+        getNextPageParam: (lastPage: { next_page: number | null }) => lastPage.next_page,
     });
 }
 

@@ -31,6 +31,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::apiResource('monsters', MonsterController::class)->except(['index']);
     Route::apiResource('characters', CharacterController::class);
     Route::apiResource('spells', SpellController::class)->except(['index']);
+    Route::get('encounters/folders', [EncounterController::class, 'folders']);
     Route::apiResource('encounters', EncounterController::class);
 });
 

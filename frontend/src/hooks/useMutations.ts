@@ -155,8 +155,30 @@ export function useCreateEncounter() {
     const queryClient = useQueryClient();
 
     return useMutation({
-        mutationFn: (encounterData: Partial<Encounter>) => {
-            if (!authToken) throw new Error('Authentication required');
+        mutationFn: (encounterData: Partial<Encounter> | {
+            name: string;
+            status: 'draft' | 'active' | 'completed';
+            current_round: number;
+            current_turn_index?: string | null;
+            combatants: Array<{
+                index: string;
+                unit_type: string;
+                initiative: number;
+                name: string;
+                current_hit_points: number;
+                max_hit_points: number;
+                temporary_hit_points: number;
+                armor_class: number;
+                used_spell_slots?: Record<string, number>;
+                action_used?: boolean;
+                bonus_action_used?: boolean;
+                reaction_used?: boolean;
+                legendary_actions_used?: number;
+                combatantable_type?: string;
+                combatantable_id?: number | null;
+            }>;
+        }) => {
+            if (!authToken) throw new Error('Must be logged in to save encounter');
             return encountersApi.createEncounter(encounterData, authToken);
         },
         onSuccess: () => {

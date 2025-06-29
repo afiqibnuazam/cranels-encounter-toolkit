@@ -15,6 +15,7 @@ import { Sheet, SheetTrigger } from './ui/sheet'
 import { Avatar, AvatarFallback } from './ui/avatar'
 import { useAuthentication } from '@/context/AuthenticationContext'
 import { usePathname } from 'next/navigation'
+import { D20Icon } from './icons/DiceIcons'
 
 const Navbar = () => {
 
@@ -25,9 +26,9 @@ const Navbar = () => {
     const hideReferencePane = pathName === '/auth';
 
     return (
-        <nav className="p-4 flex items-center justify-between sticky top-0 bg-background z-10">
+        <nav className="p-4 grid grid-cols-4 sticky top-0 bg-background z-10">
             {/* LEFT */}
-            <div className="flex items-center gap-4">
+            <div className="flex items-center justify-start gap-4">
                 {!hideReferencePane && (
                     <Sheet>
                         <SheetTrigger asChild>
@@ -37,12 +38,20 @@ const Navbar = () => {
                     </Sheet>
                 )}
                 <Link href="/" className="text-lg font-bold">
-                    Cranel Encounter Toolkit
+                    <h1>Cranel&apos;s Encounter Toolkit</h1>
                 </Link>
             </div>
 
+            {/* MIDDLE */}
+            {/* TODO: Make this work */}
+            <div className="col-span-2 flex items-center justify-center">
+                <div className="cursor-pointer hover:text-primary hover:scale-110 transition-all duration-300" title="Dice Roller">
+                    <D20Icon size={32} />
+                </div>
+            </div>
+
             {/* RIGHT */}
-            <div className="flex items-center gap-4">
+            <div className="flex items-center justify-end gap-4">
                 {/* THEME MENU */}
                 <DropdownMenu>
                     <DropdownMenuTrigger asChild>

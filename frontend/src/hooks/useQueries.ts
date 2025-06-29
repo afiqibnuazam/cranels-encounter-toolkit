@@ -1,11 +1,10 @@
-import { useQueries, useQuery, UseQueryResult } from "@tanstack/react-query";
+import { useQuery, UseQueryResult } from "@tanstack/react-query";
 import { monstersApi, spellsApi, charactersApi, encountersApi } from "@/lib/api";
-import { Monster, MonsterSummary } from "@/types/monster";
-import { Spell, SpellSummary } from "@/types/spell";
+import { Monster } from "@/types/monster";
+import { Spell } from "@/types/spell";
 import { Character } from "@/components/reference-tables/characters/characters-columns";
 import { Encounter } from "@/components/reference-tables/encounters/encounters-columns";
 import { useAuthentication } from "@/context/AuthenticationContext";
-import { useMemo } from "react";
 
 
 // Query key factories
@@ -23,43 +22,11 @@ export const queryKeys = {
     },
     encounters: {
         all: (authToken: string) => ['encounters', { authToken }] as const,
+        folderNames: (authToken: string) => ['encounter-folders', { authToken }] as const,
     },
 };
 
 // MONSTER HOOKS
-// export function useMonsters() {
-//     const { authToken } = useAuthentication();
-
-//     const results = useQueries({
-//         queries: [
-//             {
-//                 queryKey: ['srd-monsters'],
-//                 queryFn: () => monstersApi.getSrdMonsters(),
-//                 staleTime: 10 * 60 * 1000,
-//             },
-//             {
-//                 queryKey: ['custom-monsters', authToken],
-//                 queryFn: () => monstersApi.getCustomMonsters(authToken!),
-//                 enabled: !!authToken,
-//                 staleTime: 5 * 60 * 1000,
-//             }
-//         ]
-//     });
-
-//     const [srdQuery, customQuery] = results;
-
-//     return {
-//         data: useMemo(() => {
-//             const srdMonsters = srdQuery.data || [];
-//             const customMonsters = customQuery.data || [];
-//             return [...srdMonsters, ...customMonsters].sort((a, b) => a.name.localeCompare(b.name));
-//         }, [srdQuery.data, customQuery.data]),
-
-//         isLoading: results.some(result => result.isLoading),
-//         error: results.find(result => result.error)?.error || null,
-//         isError: results.some(result => result.isError),
-//     };
-// }
 export function useMonsters() {
     const { authToken } = useAuthentication();
     
@@ -153,6 +120,20 @@ export function useCharacters(): UseQueryResult<Character[], Error> {
     });
 }
 
+export function useCharacter(
+    index: string,
+    enabled: boolean = true
+): UseQueryResult<Character, Error> {
+    const { authToken } = useAuthentication();
+
+    return useQuery({
+        queryKey: ['character-detail', index, !!authToken],
+        queryFn: () => charactersApi.getById(index, authToken!),
+        enabled: enabled && !!index && !!authToken,
+        staleTime: 2 * 60 * 1000, // 2 minutes (more dynamic data)
+    });
+}
+
 // ENCOUNTER HOOKS (authenticated users only)
 export function useEncounters(): UseQueryResult<Encounter[], Error> {
     const { authToken } = useAuthentication();
@@ -160,6 +141,17 @@ export function useEncounters(): UseQueryResult<Encounter[], Error> {
     return useQuery({
         queryKey: queryKeys.encounters.all(authToken!),
         queryFn: () => encountersApi.getAll(authToken!),
+        enabled: !!authToken,
+        staleTime: 2 * 60 * 1000, // 2 minutes (more dynamic data)
+    });
+}
+
+export function useFolderNames(): UseQueryResult<string[], Error> {
+    const { authToken } = useAuthentication();
+
+    return useQuery({
+        queryKey: queryKeys.encounters.folderNames(authToken!),
+        queryFn: () => encountersApi.getFolderNames(authToken!),
         enabled: !!authToken,
         staleTime: 2 * 60 * 1000, // 2 minutes (more dynamic data)
     });

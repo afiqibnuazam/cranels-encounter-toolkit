@@ -8,6 +8,9 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useEncounter } from "@/context/EncounterContext";
 import { toast } from "sonner";
+import { rollD20 } from "@/lib/dice";
+import { D20Icon } from "@/components/icons/DiceIcons";
+import { renderUnitType, UNIT_TYPES, UnitType } from "@/types";
 
 interface QuickAddCombatantDialogProps {
     children: React.ReactNode;
@@ -21,12 +24,12 @@ export function QuickAddCombatantDialog({ children }: QuickAddCombatantDialogPro
         max_hit_points: '',
         armor_class: '',
         initiative: '',
-        unit_type: 'enemy_npc' as 'monster' | 'player_character' | 'allied_npc' | 'enemy_npc'
+        unit_type: 'enemy_npc' as UnitType
     });
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
-        
+
         if (!formData.name || !formData.max_hit_points || !formData.armor_class) {
             toast.error("Please fill in all required fields");
             return;
@@ -39,23 +42,23 @@ export function QuickAddCombatantDialog({ children }: QuickAddCombatantDialogPro
 
         const combatantData = {
             name: formData.name,
-            max_hit_points: parseInt(formData.max_hit_points),
             current_hit_points: parseInt(formData.max_hit_points),
+            max_hit_points: parseInt(formData.max_hit_points),
             temporary_hit_points: 0,
-            armor_class: formData.armor_class,
+            armor_class: parseInt(formData.armor_class),
             initiative: isRunning ? parseInt(formData.initiative) || 0 : 0,
             unit_type: formData.unit_type,
-            source_type: 'custom' as const,
-            dexterity: 10 // Default dexterity for initiative calculations
+            dexterity: 10, // Default dexterity for initiative calculations
+            effects: [], // Initialize empty effects array
         };
 
         addCombatant(combatantData);
-        
+
         // Reset form and close dialog
-        setFormData({ 
-            name: '', 
-            max_hit_points: '', 
-            armor_class: '', 
+        setFormData({
+            name: '',
+            max_hit_points: '',
+            armor_class: '',
             initiative: '',
             unit_type: 'enemy_npc'
         });
@@ -63,11 +66,16 @@ export function QuickAddCombatantDialog({ children }: QuickAddCombatantDialogPro
         toast.success("Combatant added successfully!");
     };
 
+    const rollInitiative = () => {
+        const roll = rollD20();
+        setFormData(prev => ({ ...prev, initiative: roll.toString() }));
+    };
+
     const handleCancel = () => {
-        setFormData({ 
-            name: '', 
-            max_hit_points: '', 
-            armor_class: '', 
+        setFormData({
+            name: '',
+            max_hit_points: '',
+            armor_class: '',
             initiative: '',
             unit_type: 'enemy_npc'
         });
@@ -83,7 +91,7 @@ export function QuickAddCombatantDialog({ children }: QuickAddCombatantDialogPro
                 <DialogHeader>
                     <DialogTitle>Quick Add Combatant</DialogTitle>
                 </DialogHeader>
-                
+
                 <form onSubmit={handleSubmit} className="mt-2 space-y-4">
                     <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-2">
@@ -96,12 +104,12 @@ export function QuickAddCombatantDialog({ children }: QuickAddCombatantDialogPro
                                 required
                             />
                         </div>
-                        
+
                         <div className="space-y-2">
                             <Label htmlFor="unit_type" className="gap-1">Type<span className="text-destructive">*</span></Label>
                             <Select
                                 value={formData.unit_type}
-                                onValueChange={(value: 'monster' | 'player_character' | 'allied_npc' | 'enemy_npc') => 
+                                onValueChange={(value: UnitType) =>
                                     setFormData(prev => ({ ...prev, unit_type: value }))
                                 }
                             >
@@ -109,15 +117,16 @@ export function QuickAddCombatantDialog({ children }: QuickAddCombatantDialogPro
                                     <SelectValue placeholder="Select type" />
                                 </SelectTrigger>
                                 <SelectContent>
-                                    <SelectItem value="monster">Monster</SelectItem>
-                                    <SelectItem value="player_character">Player Character</SelectItem>
-                                    <SelectItem value="allied_npc">Allied NPC</SelectItem>
-                                    <SelectItem value="enemy_npc">Enemy NPC</SelectItem>
+                                    {UNIT_TYPES.map((type) => (
+                                        <SelectItem key={type} value={type}>
+                                            {renderUnitType(type as UnitType)}
+                                        </SelectItem>
+                                    ))}
                                 </SelectContent>
                             </Select>
                         </div>
                     </div>
-                    
+
                     <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-2">
                             <Label htmlFor="max_hp" className="gap-1">Max HP<span className="text-destructive">*</span></Label>
@@ -131,7 +140,7 @@ export function QuickAddCombatantDialog({ children }: QuickAddCombatantDialogPro
                                 required
                             />
                         </div>
-                        
+
                         <div className="space-y-2">
                             <Label htmlFor="ac" className="gap-1">Armor Class<span className="text-destructive">*</span></Label>
                             <Input
@@ -145,27 +154,41 @@ export function QuickAddCombatantDialog({ children }: QuickAddCombatantDialogPro
                             />
                         </div>
                     </div>
-                    
+
                     <div className="space-y-2">
                         <Label htmlFor="initiative" className="gap-1">
                             Initiative {isRunning && <span className="text-destructive">*</span>}
                         </Label>
-                        <Input
-                            id="initiative"
-                            type="number"
-                            value={formData.initiative}
-                            onChange={(e) => setFormData(prev => ({ ...prev, initiative: e.target.value }))}
-                            placeholder={isRunning ? "Required" : "Optional"}
-                            required={isRunning}
-                            disabled={!isRunning}
-                        />
+                        <div className="flex items-center gap-2">
+                            <Input
+                                id="initiative"
+                                type="number"
+                                value={formData.initiative}
+                                onChange={(e) => setFormData(prev => ({ ...prev, initiative: e.target.value }))}
+                                placeholder={isRunning ? "Required" : "Optional"}
+                                required={isRunning}
+                                disabled={!isRunning}
+                            />
+                            <Button
+                                type="button"
+                                variant="outline"
+                                size="icon"
+                                onClick={rollInitiative}
+                                disabled={!isRunning}
+                                className="cursor-pointer"
+                                title="Roll initiative"
+                                aria-label="Roll initiative"
+                            >
+                                <D20Icon />
+                            </Button>
+                        </div>
                     </div>
-                    
+
                     <DialogFooter>
-                        <Button type="button" variant="outline" onClick={handleCancel}>
+                        <Button type="button" variant="outline" onClick={handleCancel} className="cursor-pointer">
                             Cancel
                         </Button>
-                        <Button type="submit">
+                        <Button type="submit" className="cursor-pointer">
                             Add Combatant
                         </Button>
                     </DialogFooter>

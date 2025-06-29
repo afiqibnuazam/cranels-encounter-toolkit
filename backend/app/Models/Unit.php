@@ -82,7 +82,7 @@ class Unit extends Model implements HasMedia
 
     public function isCharacter(): bool
     {
-        return in_array($this->type, [
+        return in_array($this->unit_type, [
             UnitType::PLAYER_CHARACTER,
             UnitType::ALLIED_NPC,
             UnitType::ENEMY_NPC,

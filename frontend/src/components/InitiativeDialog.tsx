@@ -5,12 +5,13 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogT
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { ChevronUp, ChevronDown, Dices } from "lucide-react"
-import { LocalCombatant } from "@/context/EncounterContext"
+import { Combatant } from "@/context/EncounterContext"
 import { getAbilityModifier } from "@/types/monster"
 import { Tooltip, TooltipContent, TooltipTrigger } from "./ui/tooltip"
+import { rollD20 } from "@/lib/dice"
 
 interface InitiativeRoll {
-    id: string
+    index: string
     name: string
     initiative: number
     dexterityModifier: number
@@ -18,16 +19,13 @@ interface InitiativeRoll {
 }
 
 interface InitiativeDialogProps {
-    combatants: LocalCombatant[]
-    onConfirm: (initiatives: { id: string; initiative: number }[]) => void
+    combatants: Combatant[]
+    onConfirm: (initiatives: { index: string; initiative: number }[]) => void
     children: React.ReactNode
 }
 
-// Helper function to roll d20
-const rollD20 = () => Math.floor(Math.random() * 20) + 1
-
 // Helper function to calculate dexterity modifier from actual dexterity score
-const getDexterityModifier = (combatant: LocalCombatant): number => {
+const getDexterityModifier = (combatant: Combatant): number => {
     // Use actual dexterity score if available, otherwise default to 10 (modifier of 0)
     const dexterity = combatant.dexterity || 10;
     return getAbilityModifier(dexterity);
@@ -44,7 +42,7 @@ export function InitiativeDialog({ combatants, onConfirm, children }: Initiative
                 const dexMod = getDexterityModifier(combatant)
                 const roll = rollD20()
                 return {
-                    id: combatant.id,
+                    index: combatant.index,
                     name: combatant.name,
                     initiative: roll + dexMod,
                     dexterityModifier: dexMod,
@@ -56,10 +54,10 @@ export function InitiativeDialog({ combatants, onConfirm, children }: Initiative
         }
     }, [isOpen, combatants])
 
-    const handleInitiativeChange = (id: string, newValue: number) => {
+    const handleInitiativeChange = (index: string, newValue: number) => {
         setInitiatives(prev =>
             prev.map(init =>
-                init.id === id
+                init.index === index
                     ? { ...init, initiative: Math.max(1, Math.min(30, newValue)) }
                     : init
             )
@@ -67,10 +65,10 @@ export function InitiativeDialog({ combatants, onConfirm, children }: Initiative
         )
     }
 
-    const handleRerollSingle = (id: string) => {
+    const handleRerollSingle = (index: string) => {
         setInitiatives(prev =>
             prev.map(init => {
-                if (init.id === id) {
+                if (init.index === index) {
                     const roll = rollD20()
                     return { ...init, initiative: roll + init.dexterityModifier }
                 }
@@ -92,7 +90,7 @@ export function InitiativeDialog({ combatants, onConfirm, children }: Initiative
 
     const handleConfirm = () => {
         const initiativeUpdates = initiatives.map(init => ({
-            id: init.id,
+            index: init.index,
             initiative: init.initiative
         }))
         onConfirm(initiativeUpdates)
@@ -131,7 +129,7 @@ export function InitiativeDialog({ combatants, onConfirm, children }: Initiative
                             variant="outline"
                             size="sm"
                             onClick={handleRerollAll}
-                            className="flex items-center gap-1"
+                            className="flex items-center gap-1 cursor-pointer"
                         >
                             <Dices className="h-3 w-3" />
                             Reroll All
@@ -140,7 +138,7 @@ export function InitiativeDialog({ combatants, onConfirm, children }: Initiative
 
                     <div className="space-y-2">
                         {initiatives.map((init) => (
-                            <div key={init.id} className="flex items-center gap-2 p-2 border rounded-lg">
+                            <div key={init.index} className="flex items-center gap-2 p-2 border rounded-lg">
                                 <div className="flex-1 min-w-0">
                                     <p className="text-sm font-medium truncate">{init.name}</p>
                                     <p className="text-xs text-muted-foreground">
@@ -152,8 +150,8 @@ export function InitiativeDialog({ combatants, onConfirm, children }: Initiative
                                     <Button
                                         variant="ghost"
                                         size="sm"
-                                        className="h-6 w-6 p-0"
-                                        onClick={() => handleInitiativeChange(init.id, init.initiative + 1)}
+                                        className="h-6 w-6 p-0 cursor-pointer"
+                                        onClick={() => handleInitiativeChange(init.index, init.initiative + 1)}
                                     >
                                         <ChevronUp className="h-3 w-3" />
                                     </Button>
@@ -161,7 +159,7 @@ export function InitiativeDialog({ combatants, onConfirm, children }: Initiative
                                     <Input
                                         type="number"
                                         value={init.initiative}
-                                        onChange={(e) => handleInitiativeChange(init.id, parseInt(e.target.value) || 1)}
+                                        onChange={(e) => handleInitiativeChange(init.index, parseInt(e.target.value) || 1)}
                                         className="w-16 h-8 text-center text-sm [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                                         min={1}
                                         max={30}
@@ -170,8 +168,8 @@ export function InitiativeDialog({ combatants, onConfirm, children }: Initiative
                                     <Button
                                         variant="ghost"
                                         size="sm"
-                                        className="h-6 w-6 p-0"
-                                        onClick={() => handleInitiativeChange(init.id, init.initiative - 1)}
+                                        className="h-6 w-6 p-0 cursor-pointer"
+                                        onClick={() => handleInitiativeChange(init.index, init.initiative - 1)}
                                     >
                                         <ChevronDown className="h-3 w-3" />
                                     </Button>
@@ -179,8 +177,8 @@ export function InitiativeDialog({ combatants, onConfirm, children }: Initiative
                                     <Button
                                         variant="ghost"
                                         size="sm"
-                                        className="h-6 w-6 p-0"
-                                        onClick={() => handleRerollSingle(init.id)}
+                                        className="h-6 w-6 p-0 cursor-pointer"
+                                        onClick={() => handleRerollSingle(init.index)}
                                         title="Reroll initiative"
                                     >
                                         <Dices className="h-3 w-3" />
@@ -193,7 +191,7 @@ export function InitiativeDialog({ combatants, onConfirm, children }: Initiative
 
                 <DialogFooter>
                     <DialogClose asChild>
-                        <Button variant="destructive">
+                        <Button variant="destructive" className="cursor-pointer">
                             Cancel
                         </Button>
                     </DialogClose>

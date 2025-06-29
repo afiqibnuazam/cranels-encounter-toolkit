@@ -6,50 +6,72 @@ import { Separator } from '@/components/ui/separator';
 import { Button } from '@/components/ui/button';
 import { X } from 'lucide-react';
 import {
-    LocalCombatant,
+    Combatant,
     useEncounterState,
     useEncounter
 } from '@/context/EncounterContext';
-import { useMonster } from '@/hooks/useQueries';
+import { useMonster, useCharacter } from '@/hooks/useQueries';
 import {
-    Monster,
+    BaseCreature,
     formatSpeed,
     formatSenses,
     formatAbilityScore,
     getChallengeRatingString,
-    formatArmorClass
-} from '@/types/monster';
+    formatArmorClass,
+    formatUsage,
+    getAbilityScoreName,
+    CreatureAbility,
+    CreatureSpellcasting,
+    CreatureAction,
+    CreatureLegendaryAction,
+    CreatureReaction,
+    SpellcastingProfile,
+} from '@/types/creature';
+import { SpellSchool, SpellSummary } from '@/types/spell';
+import SpellHoverCard from './hover-cards/SpellHoverCard';
+import { getOrdinalSuffix } from '@/lib/utils';
 
 const CombatantInfo = () => {
     const { combatants, isRunning, currentTurn, selectedCombatantId } = useEncounterState();
     const { clearSelectedCombatant } = useEncounter();
-    const [selectedCombatant, setSelectedCombatant] = useState<LocalCombatant | null>(null);
+    const [selectedCombatant, setSelectedCombatant] = useState<Combatant | null>(null);
 
     // Determine which combatant to display
-    const displayCombatantId = selectedCombatantId || (isRunning && combatants.length > 0 && currentTurn < combatants.length ? combatants[currentTurn].id : undefined);
+    const displayCombatantIndex = selectedCombatantId || (isRunning && combatants.length > 0 && currentTurn < combatants.length ? combatants[currentTurn].index : undefined);
 
     // Find the combatant to display
     useEffect(() => {
-        if (displayCombatantId) {
-            const combatant = combatants.find(c => c.id === displayCombatantId);
+        if (displayCombatantIndex) {
+            const combatant = combatants.find(c => c.index === displayCombatantIndex);
             setSelectedCombatant(combatant || null);
         } else {
             setSelectedCombatant(null);
         }
-    }, [displayCombatantId, combatants]);
+    }, [displayCombatantIndex, combatants]);
 
     // Fetch monster data if it's a monster
-    const { data: fullMonster, isLoading, error } = useMonster(
+    const { data: fullMonster, isLoading: isLoadingMonster, error: errorMonster } = useMonster(
         selectedCombatant?.index || '',
         selectedCombatant?.source_type,
-        !!selectedCombatant?.index
+        !!selectedCombatant?.index && selectedCombatant?.unit_type === 'monster'
     );
+
+    // Fetch character data if it's a character
+    const { data: fullCharacter, isLoading: isLoadingCharacter, error: errorCharacter } = useCharacter(
+        selectedCombatant?.index || '',
+        !!selectedCombatant?.index && selectedCombatant?.unit_type !== 'monster'
+    );
+
+    // Combine loading and error states
+    const isLoading = isLoadingMonster || isLoadingCharacter;
+    const error = errorMonster || errorCharacter;
+    const fullData = fullMonster || fullCharacter;
 
     const handleClose = () => {
         clearSelectedCombatant();
     };
 
-    const isManuallySelected = selectedCombatantId && selectedCombatantId !== (isRunning && combatants.length > 0 && currentTurn < combatants.length ? combatants[currentTurn].id : undefined);
+    const isManuallySelected = selectedCombatantId && selectedCombatantId !== (isRunning && combatants.length > 0 && currentTurn < combatants.length ? combatants[currentTurn].index : undefined);
 
     // Determine header text based on state
     const getHeaderText = () => {
@@ -62,40 +84,40 @@ const CombatantInfo = () => {
         return Array.isArray(desc) ? desc.join(' ') : desc;
     };
 
-    const renderAbilityScores = (monster: Monster) => (
+    const renderAbilityScores = (creature: BaseCreature) => (
         <div className="grid grid-cols-6 gap-2 text-center text-xs">
             <div>
                 <div className="font-semibold">STR</div>
-                <div>{formatAbilityScore(monster.strength)}</div>
+                <div>{formatAbilityScore(creature.strength)}</div>
             </div>
             <div>
                 <div className="font-semibold">DEX</div>
-                <div>{formatAbilityScore(monster.dexterity)}</div>
+                <div>{formatAbilityScore(creature.dexterity)}</div>
             </div>
             <div>
                 <div className="font-semibold">CON</div>
-                <div>{formatAbilityScore(monster.constitution)}</div>
+                <div>{formatAbilityScore(creature.constitution)}</div>
             </div>
             <div>
                 <div className="font-semibold">INT</div>
-                <div>{formatAbilityScore(monster.intelligence)}</div>
+                <div>{formatAbilityScore(creature.intelligence)}</div>
             </div>
             <div>
                 <div className="font-semibold">WIS</div>
-                <div>{formatAbilityScore(monster.wisdom)}</div>
+                <div>{formatAbilityScore(creature.wisdom)}</div>
             </div>
             <div>
                 <div className="font-semibold">CHA</div>
-                <div>{formatAbilityScore(monster.charisma)}</div>
+                <div>{formatAbilityScore(creature.charisma)}</div>
             </div>
         </div>
     );
 
-    const renderDamageInfo = (monster: Monster) => {
-        const hasResistances = monster.damage_resistances && monster.damage_resistances.length > 0;
-        const hasImmunities = monster.damage_immunities && monster.damage_immunities.length > 0;
-        const hasVulnerabilities = monster.damage_vulnerabilities && monster.damage_vulnerabilities.length > 0;
-        const hasConditionImmunities = monster.condition_immunities && monster.condition_immunities.length > 0;
+    const renderDamageInfo = (creature: BaseCreature) => {
+        const hasResistances = creature.damage_resistances && creature.damage_resistances.length > 0;
+        const hasImmunities = creature.damage_immunities && creature.damage_immunities.length > 0;
+        const hasVulnerabilities = creature.damage_vulnerabilities && creature.damage_vulnerabilities.length > 0;
+        const hasConditionImmunities = creature.condition_immunities && creature.condition_immunities.length > 0;
 
         if (!hasResistances && !hasImmunities && !hasVulnerabilities && !hasConditionImmunities) {
             return null;
@@ -105,35 +127,35 @@ const CombatantInfo = () => {
             <div className="space-y-1 text-sm">
                 {hasVulnerabilities && (
                     <div>
-                        <strong>Damage Vulnerabilities:</strong> {monster.damage_vulnerabilities!.join(', ')}
+                        <strong>Damage Vulnerabilities:</strong> {creature.damage_vulnerabilities!.join(', ')}
                     </div>
                 )}
                 {hasResistances && (
                     <div>
-                        <strong>Damage Resistances:</strong> {monster.damage_resistances!.join(', ')}
+                        <strong>Damage Resistances:</strong> {creature.damage_resistances!.join(', ')}
                     </div>
                 )}
                 {hasImmunities && (
                     <div>
-                        <strong>Damage Immunities:</strong> {monster.damage_immunities!.join(', ')}
+                        <strong>Damage Immunities:</strong> {creature.damage_immunities!.join(', ')}
                     </div>
                 )}
                 {hasConditionImmunities && (
                     <div>
-                        <strong>Condition Immunities:</strong> {monster.condition_immunities!.map(c => c.name).join(', ')}
+                        <strong>Condition Immunities:</strong> {creature.condition_immunities!.map(c => c.name).join(', ')}
                     </div>
                 )}
             </div>
         );
     };
 
-    const renderProficiencies = (monster: Monster) => {
-        if (!monster.proficiencies || monster.proficiencies.length === 0) return null;
+    const renderProficiencies = (creature: BaseCreature) => {
+        if (!creature.proficiencies || creature.proficiencies.length === 0) return null;
 
         const savingThrows: string[] = [];
         const skills: string[] = [];
 
-        monster.proficiencies.forEach(prof => {
+        creature.proficiencies.forEach(prof => {
             if (prof.proficiency.name.startsWith('Saving Throw:')) {
                 const ability = prof.proficiency.name.replace('Saving Throw: ', '');
                 savingThrows.push(`${ability} +${prof.value}`);
@@ -155,31 +177,108 @@ const CombatantInfo = () => {
         );
     };
 
-    const renderSpecialAbilities = (monster: Monster) => {
-        if (!monster.special_abilities || monster.special_abilities.length === 0) return null;
+    const renderSpecialAbilities = (creature: BaseCreature) => {
+        if (!creature.special_abilities || creature.special_abilities.length === 0) return null;
 
         return (
             <div className="space-y-2">
-                <h4 className="font-semibold text-lg text-primary">Special Abilities</h4>
-                {monster.special_abilities.map((ability, index) => (
-                    <div key={index} className="text-sm">
-                        <div className="font-semibold">{ability.name}</div>
-                        <div className="text-muted-foreground">
-                            {formatDescription(ability.desc)}
+                <h4 className="font-semibold text-lg text-primary">Traits</h4>
+                {creature.special_abilities.map((ability, index) => {
+
+                    if (ability.spellcasting && creature.spellcasting_profiles && creature.spellcasting_profiles.length > 0) {
+                        // Use the first spellcasting profile for spellcasting abilities
+                        const profile = creature.spellcasting_profiles[0];
+                        return renderSpellcasting(profile, index, creature, ability.name);
+                    }
+
+                    // Format ability name with usage
+                    let abilityName = ability.name;
+                    if (ability.usage) {
+                        const usageText = formatUsage(ability.usage);
+                        abilityName = usageText ? `${ability.name} (${usageText})` : ability.name;
+                    }
+
+                    // Render normal ability
+                    return (
+                        <div key={index} className="text-sm">
+                            <div className="font-semibold">{abilityName}</div>
+                            <div className="text-muted-foreground">
+                                {formatDescription(ability.desc)}
+                            </div>
                         </div>
-                    </div>
-                ))}
+                    );
+                })}
             </div>
         );
     };
 
-    const renderActions = (monster: Monster) => {
-        if (!monster.actions || monster.actions.length === 0) return null;
+    const renderSpellcasting = (profile: SpellcastingProfile, index: number, creature: BaseCreature, customName?: string) => {
+        // Combine SRD spells and custom spells
+        const allSpells = [...(profile.srd_spells || []), ...(profile.spells || [])];
+        
+        if (allSpells.length === 0) return null;
+
+        // Group spells by level
+        const spellsByLevel = allSpells.reduce((acc: Record<number, SpellSummary[]>, spell: SpellSummary) => {
+            const level = spell.level || 0;
+            if (!acc[level]) acc[level] = [];
+            acc[level].push(spell);
+            return acc;
+        }, {} as Record<number, SpellSummary[]>);
+
+        // Use the utility function for ability name
+        const abilityName = getAbilityScoreName(profile.ability);
+
+        return (
+            <div key={index} className="text-sm">
+                <div className="font-semibold">{customName || 'Spellcasting'}</div>
+                <div className="text-muted-foreground mb-2">
+                    The {creature.name.toLowerCase()} is a {profile.level ? `${profile.level}${getOrdinalSuffix(profile.level)}-level` : '1st-level'} spellcaster.
+                    Its spellcasting ability is {abilityName} (spell save DC {profile.dc || 'Unknown'}{profile.modifier !== undefined && profile.modifier >= 0 ? `, +${profile.modifier}` : profile.modifier !== undefined ? `, ${profile.modifier}` : ''} to hit with spell attacks).
+                    The {creature.name.toLowerCase()} has the following {profile.school || 'cleric'} spells prepared:
+                </div>
+
+                {/* Render spells by level */}
+                {Object.keys(spellsByLevel)
+                    .map(Number)
+                    .sort((a, b) => a - b)
+                    .map(level => {
+                        const spells = spellsByLevel[level];
+                        const levelSlots = profile.slots?.[level.toString()];
+
+                        if (!spells || spells.length === 0) return null;
+
+                        return (
+                            <div key={level} className="mb-1">
+                                <span className="font-medium">
+                                    {level === 0 ? 'Cantrips (at will)' : `${level}${getOrdinalSuffix(level)} level${levelSlots ? ` (${levelSlots} slots)` : ''}`}:
+                                </span>
+                                <span className="ml-1">
+                                    {spells.map((spell, spellIndex) => (
+                                        <span key={spellIndex}>
+                                            <SpellHoverCard spell={spell}>
+                                                <span className="italic hover:underline cursor-pointer">
+                                                    {spell.name}
+                                                </span>
+                                            </SpellHoverCard>
+                                            {spellIndex < spells.length - 1 && ', '}
+                                        </span>
+                                    ))}
+                                </span>
+                            </div>
+                        );
+                    })}
+            </div>
+        );
+    };
+
+    const renderActions = (creature: BaseCreature) => {
+        if (!creature.actions || creature.actions.length === 0) return null;
 
         return (
             <div className="space-y-2">
                 <h4 className="font-semibold text-lg text-primary">Actions</h4>
-                {monster.actions.map((action, index) => (
+                {creature.actions.map((action, index) => (
                     <div key={index} className="text-sm">
                         <div className="font-semibold">{action.name}</div>
                         <div className="text-muted-foreground">
@@ -191,13 +290,31 @@ const CombatantInfo = () => {
         );
     };
 
-    const renderLegendaryActions = (monster: Monster) => {
-        if (!monster.legendary_actions || monster.legendary_actions.length === 0) return null;
+    const renderLegendaryActions = (creature: BaseCreature) => {
+        if (!creature.legendary_actions || creature.legendary_actions.length === 0) return null;
 
         return (
             <div className="space-y-2">
                 <h4 className="font-semibold text-lg text-primary">Legendary Actions</h4>
-                {monster.legendary_actions.map((action, index) => (
+                {creature.legendary_actions.map((action, index) => (
+                    <div key={index} className="text-sm">
+                        <div className="font-semibold">{action.name}</div>
+                        <div className="text-muted-foreground">
+                            {formatDescription(action.desc)}
+                        </div>
+                    </div>
+                ))}
+            </div>
+        );
+    };
+
+    const renderReactions = (creature: BaseCreature) => {
+        if (!creature.reactions || creature.reactions.length === 0) return null;
+
+        return (
+            <div className="space-y-2">
+                <h4 className="font-semibold text-lg text-primary">Reactions</h4>
+                {creature.reactions.map((action, index) => (
                     <div key={index} className="text-sm">
                         <div className="font-semibold">{action.name}</div>
                         <div className="text-muted-foreground">
@@ -220,8 +337,8 @@ const CombatantInfo = () => {
         );
     }
 
-    // Show basic combatant info even if it's not a monster or if loading fails
-    const showMonsterDetails = fullMonster && !isLoading && !error;
+    // Show creature details if we have full data
+    const showCreatureDetails = fullData && !isLoading && !error;
 
     return (
         <div className="h-full">
@@ -245,16 +362,17 @@ const CombatantInfo = () => {
                     <div className="flex-1">
                         <h3 className="text-3xl text-primary font-bold">{selectedCombatant.name}</h3>
                         <p className="text-sm text-muted-foreground capitalize">
-                            {showMonsterDetails && fullMonster.size && `${fullMonster.size} `}
-                            {showMonsterDetails && fullMonster.type}
-                            {showMonsterDetails && fullMonster.alignment && `, ${fullMonster.alignment}`}
-                            {!showMonsterDetails && selectedCombatant.unit_type && selectedCombatant.unit_type.replace('_', ' ')}
+                            {showCreatureDetails && fullData.size && `${fullData.size} `}
+                            {showCreatureDetails && fullData.type}
+                            {showCreatureDetails && fullData.subtype && ` (${fullData.subtype})`}
+                            {showCreatureDetails && fullData.alignment && `, ${fullData.alignment}`}
+                            {!showCreatureDetails && selectedCombatant.unit_type && selectedCombatant.unit_type.replace('_', ' ')}
                         </p>
                         <div className="text-sm"><strong>Current HP:</strong> {selectedCombatant.current_hit_points} / {selectedCombatant.max_hit_points}</div>
                     </div>
                 )}
             </div>
-            <ScrollArea className="h-[512px] pr-4">
+            <ScrollArea className="h-[calc(100vh-256px)] pr-4">
                 <div className="space-y-3">
                     {/* Combatant Details */}
                     <Separator />
@@ -273,60 +391,76 @@ const CombatantInfo = () => {
 
                     {/* Basic combat stats */}
                     <div className="space-y-1 text-sm">
-                        <div><strong>Armor Class:</strong> {formatArmorClass(fullMonster?.armor_class)}</div>
+                        <div><strong>Armor Class:</strong> {formatArmorClass(fullData?.armor_class)}</div>
                         {selectedCombatant.temporary_hit_points > 0 && (
                             <div><strong>Temporary HP:</strong> {selectedCombatant.temporary_hit_points}</div>
                         )}
-                        {showMonsterDetails && fullMonster.speed && (
-                            <div><strong>Speed:</strong> {formatSpeed(fullMonster.speed)}</div>
+                        {showCreatureDetails && fullData.speed && (
+                            <div><strong>Speed:</strong> {formatSpeed(fullData.speed)}</div>
                         )}
                     </div>
 
-                    {showMonsterDetails && (
+                    {showCreatureDetails && (
                         <>
                             <Separator />
 
                             {/* Ability Scores */}
-                            {renderAbilityScores(fullMonster)}
+                            {renderAbilityScores(fullData)}
 
                             <Separator />
 
                             {/* Proficiencies */}
-                            {renderProficiencies(fullMonster)}
+                            {renderProficiencies(fullData)}
 
                             {/* Damage Info */}
-                            {renderDamageInfo(fullMonster)}
+                            {renderDamageInfo(fullData)}
 
                             {/* Senses and Languages */}
                             <div className="space-y-1 text-sm">
-                                {fullMonster.senses && (
-                                    <div><strong>Senses:</strong> {formatSenses(fullMonster.senses)}</div>
+                                {fullData.senses && (
+                                    <div><strong>Senses:</strong> {formatSenses(fullData.senses)}</div>
                                 )}
-                                {fullMonster.languages && (
-                                    <div><strong>Languages:</strong> {fullMonster.languages}</div>
+                                {fullData.languages && (
+                                    <div><strong>Languages:</strong> {fullData.languages}</div>
                                 )}
-                                <div>
-                                    <strong>Challenge:</strong> {getChallengeRatingString(fullMonster.challenge_rating)}
-                                    {fullMonster.xp && ` (${fullMonster.xp.toLocaleString()} XP)`}
-                                </div>
+                                {fullData.challenge_rating !== undefined && (
+                                    <div>
+                                        <strong>Challenge:</strong> {getChallengeRatingString(fullData.challenge_rating)}
+                                        {fullData.xp && ` (${fullData.xp.toLocaleString()} XP)`}
+                                    </div>
+                                )}
                             </div>
 
-                            {(fullMonster.special_abilities || fullMonster.actions || fullMonster.legendary_actions) && (
+                            {(fullData.special_abilities || fullData.actions || fullData.legendary_actions || fullData.reactions) && (
                                 <>
                                     <Separator />
 
                                     {/* Special Abilities */}
-                                    {renderSpecialAbilities(fullMonster)}
-
-                                    <Separator />
+                                    {renderSpecialAbilities(fullData)}
 
                                     {/* Actions */}
-                                    {renderActions(fullMonster)}
-
-                                    <Separator />
+                                    {fullData.actions && fullData.actions.length > 0 && (
+                                        <>
+                                            <Separator />
+                                            {renderActions(fullData)}
+                                        </>
+                                    )}
 
                                     {/* Legendary Actions */}
-                                    {renderLegendaryActions(fullMonster)}
+                                    {fullData.legendary_actions && fullData.legendary_actions.length > 0 && (
+                                        <>
+                                            <Separator />
+                                            {renderLegendaryActions(fullData)}
+                                        </>
+                                    )}
+
+                                    {/* Reactions */}
+                                    {fullData.reactions && fullData.reactions.length > 0 && (
+                                        <>
+                                            <Separator />
+                                            {renderReactions(fullData)}
+                                        </>
+                                    )}
                                 </>
                             )}
                         </>
