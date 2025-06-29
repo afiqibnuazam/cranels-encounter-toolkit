@@ -102,7 +102,7 @@ const NewSpellPage = () => {
     };
 
     return (
-        <div className="mx-60">
+        <div className="mx-auto max-w-7xl">
             <Card>
                 <CardHeader className="flex items-center justify-between">
                     <div>

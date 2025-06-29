@@ -66,26 +66,26 @@ const SpellForm = ({ initialData, onSubmit, isSubmitting, showPreview, isEditing
     const [selectedClasses, setSelectedClasses] = useState<DnDClass[]>([]);
 
     // Use TanStack Query to fetch spells for presets
-    const { data: allSpells, isLoading: isLoadingPresets } = useSpells();
+    const { allSpells, isLoading: isLoadingPresets } = useSpells();
 
     // Filter only SRD spells for presets
     const srdSpells = allSpells?.filter(spell => spell.source?.includes('SRD') || spell.source?.includes('Basic Rules')) || [];
 
     const form = useForm<SpellFormData>({
         resolver: zodResolver(spellSchema),
-        // defaultValues: {
-        //     name: '',
-        //     level: 0,
-        //     school: SPELL_SCHOOLS[0],
-        //     ritual: false,
-        //     concentration: false,
-        //     casting_time: '1 action',
-        //     duration: 'Instantaneous',
-        //     range: '60 feet',
-        //     components: [],
-        //     material: '',
-        //     source: '',
-        // },
+        defaultValues: {
+            // name: '',
+            // level: 0,
+            // school: SPELL_SCHOOLS[0],
+            // ritual: false,
+            // concentration: false,
+            // casting_time: '1 action',
+            // duration: 'Instantaneous',
+            // range: '60 feet',
+            // components: [],
+            // material: '',
+            source: 'Custom',
+        },
     });
 
     // Initialize form with existing data if editing
@@ -824,6 +824,7 @@ const SpellForm = ({ initialData, onSubmit, isSubmitting, showPreview, isEditing
                         />
                     </div>
                 </div>
+
                 <div className="flex flex-row gap-4">
                     <div className="w-1/8">
                         <FormField
@@ -866,6 +867,65 @@ const SpellForm = ({ initialData, onSubmit, isSubmitting, showPreview, isEditing
                                             placeholder="Enter the material components description"
                                             {...field}
                                         />
+                                    </FormControl>
+                                    <FormMessage />
+                                </FormItem>
+                            )}
+                        />
+                    </div>
+                </div>
+
+                <div className="flex flex-row gap-4">
+                    <div className="w-1/5">
+                        <FormField
+                            control={form.control}
+                            name="name"
+                            render={({ field }) => (
+                                <FormItem>
+                                    <FormLabel className="uppercase">Spell Range Type<span className="text-red-700">*</span></FormLabel>
+                                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                        <FormControl>
+                                            <SelectTrigger className="w-full !h-12 rounded-none mt-auto">
+                                                <SelectValue placeholder="-" />
+                                            </SelectTrigger>
+                                        </FormControl>
+                                        <SelectContent>
+                                            {castingTimeOptions.map((opt) => (
+                                                <SelectItem key={opt.value} value={opt.value}>
+                                                    {opt.label}
+                                                </SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                    <FormMessage />
+                                </FormItem>
+                            )}
+                        />
+                    </div>
+                    <div className="w-1/5">
+                        <FormField
+                            control={form.control}
+                            name="school"
+                            render={({ field }) => (
+                                <FormItem className="h-full">
+                                    <FormLabel className="uppercase">Range Distance (ft.)<span className="text-red-700">*</span></FormLabel>
+                                    <FormControl>
+                                        <Input className="h-12 rounded-none" placeholder="Enter the range" {...field} />
+                                    </FormControl>
+                                    <FormMessage />
+                                </FormItem>
+                            )}
+                        />
+                    </div>
+                    <div className="w-5/8">
+                        <FormField
+                            control={form.control}
+                            name="name"
+                            render={({ field }) => (
+                                <FormItem>
+                                    <FormLabel className="uppercase">Reaction Casting Time Description<span className="text-red-700">*</span></FormLabel>
+                                    <FormControl>
+                                        <Input className="h-12 rounded-none" placeholder="Enter the reaction condition description" {...field} />
                                     </FormControl>
                                     <FormMessage />
                                 </FormItem>
