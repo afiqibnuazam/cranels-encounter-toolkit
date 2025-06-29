@@ -187,9 +187,9 @@ const MonsterHoverCard = ({ monster }: MonsterHoverCardProps) => {
                 <Search size={18} className="hover:text-primary" />
             </HoverCardTrigger>
             <HoverCardContent
-                className="w-[400px]"
+                className="w-[400px] py-4 pr-2 pl-4"
             >
-                <ScrollArea className="h-[400px]" onWheel={(e) => e.stopPropagation()}>
+                <ScrollArea className="h-[400px] pr-4" onWheel={(e) => e.stopPropagation()}>
                     <div className="space-y-3">
                         {/* Header */}
                         <div>

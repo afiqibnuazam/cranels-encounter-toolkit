@@ -14,17 +14,31 @@ export function UngroupedTableBody<TData>({ table }: UngroupedTableBodyProps<TDa
                     <TableRow
                         key={row.id}
                         data-state={row.getIsSelected() && "selected"}
-                        className="h-16"
+                        className="group h-16 hover:bg-muted/50 pr-4"
                     >
                         {row.getVisibleCells().map((cell) => (
-                            <TableCell key={cell.id}>
+                            <TableCell 
+                                key={cell.id}
+                                style={{
+                                    width: cell.column.getSize() !== 150
+                                        ? `${cell.column.getSize()}px`
+                                        : undefined,
+                                    minWidth: cell.column.getSize() !== 150
+                                        ? `${cell.column.getSize()}px`
+                                        : undefined,
+                                    maxWidth: cell.column.columnDef.maxSize 
+                                        ? `${cell.column.columnDef.maxSize}px` 
+                                        : undefined,
+                                }}
+                                className={cell.column.getSize() !== 150 ? "w-fit" : ""}
+                            >
                                 {flexRender(cell.column.columnDef.cell, cell.getContext())}
                             </TableCell>
                         ))}
                     </TableRow>
                 ))
             ) : (
-                <TableRow className="">
+                <TableRow>
                     <TableCell colSpan={table.getAllColumns().length} className="text-center">
                         No results.
                     </TableCell>

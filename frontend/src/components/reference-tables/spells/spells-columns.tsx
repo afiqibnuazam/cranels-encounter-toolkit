@@ -38,20 +38,32 @@ export const columns: ColumnDef<Spell>[] = [
             const spellName = row.getValue("name")
             
             return (
-                <div className="ml-2 font-medium">{ spellName as string}</div>
+                <div className="font-medium pl-2">
+                    { spellName as string}
+                </div>
             );
         },
     },
     {
         id: "edit",
-        cell: ({ row }) => <EditSpellButton spell={row.original} />,
+        size: 40,
+        enableResizing: false,
+        cell: ({ row }) => (
+            <div className="opacity-0 group-hover:opacity-100 transition-opacity flex justify-center">
+                <EditSpellButton spell={row.original} />
+            </div>
+        ),
     },
     {
         id: "info",
+        size: 48,
+        enableResizing: false,
         cell: ({ row }) => {
             const spell = row.original;
             return (
-                <SpellHoverCard spell={spell} />
+                <div className="flex justify-center pr-2">
+                    <SpellHoverCard spell={spell} />
+                </div>
             )
         }
     },

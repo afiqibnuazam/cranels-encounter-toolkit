@@ -14,7 +14,7 @@ interface VirtualizedTableBodyProps<TData> {
     visibleKey?: string; // Add this prop to trigger re-measurement
 }
 
-export const VirtualizedTableBody = React.memo(<TData,>({
+const VirtualizedTableBodyImpl = <TData,>({
     table,
     hasNextPage,
     fetchNextPage,
@@ -166,7 +166,7 @@ export const VirtualizedTableBody = React.memo(<TData,>({
                             transform: `translateY(${virtualRow.start}px)`,
                             willChange: 'transform', // Optimize for scroll performance
                         }}
-                        className="h-16 flex items-center justify-between px-2"
+                        className="group h-16 flex items-center justify-between px-2 hover:bg-muted/50 pr-4"
                     >
                         {isLoaderRow ? (
                             <TableCell
@@ -185,8 +185,13 @@ export const VirtualizedTableBody = React.memo(<TData,>({
                                 <TableCell
                                     key={cell.id}
                                     style={{
-                                        width: cell.column.getSize(),
+                                        width: cell.column.getSize() !== 150 ? `${cell.column.getSize()}px` : undefined,
+                                        minWidth: cell.column.getSize() !== 150 ? `${cell.column.getSize()}px` : undefined,
+                                        maxWidth: cell.column.columnDef.maxSize 
+                                            ? `${cell.column.columnDef.maxSize}px` 
+                                            : undefined,
                                     }}
+                                    className={cell.column.getSize() !== 150 ? "w-fit" : ""}
                                 >
                                     {flexRender(cell.column.columnDef.cell, cell.getContext())}
                                 </TableCell>
@@ -197,6 +202,8 @@ export const VirtualizedTableBody = React.memo(<TData,>({
             })}
         </TableBody>
     );
-});
+};
 
-VirtualizedTableBody.displayName = 'VirtualizedTableBody';
+export const VirtualizedTableBody = React.memo(VirtualizedTableBodyImpl) as <TData>(
+    props: VirtualizedTableBodyProps<TData>
+) => React.JSX.Element;

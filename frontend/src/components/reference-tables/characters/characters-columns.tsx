@@ -45,25 +45,31 @@ const AddCharacterButton = ({ character }: { character: Character }) => {
 
 export const columns: ColumnDef<Character>[] = [
     {
-        id: "image",
-        header: "Avatar",
-    },
-    {
         accessorKey: "name",
         header: "Name",
         cell: ({ row }) => {
             const characterName = row.getValue("name");
             return (
-                <div className="font-medium">{characterName as string}</div>
+                <div className="font-medium pl-2">
+                    {characterName as string}
+                </div>
             );
         },
     },
     {
         id: "edit",
-        cell: () => <SquarePen size={18} />,
+        size: 40,
+        enableResizing: false,
+        cell: () => (
+            <div className="opacity-0 group-hover:opacity-100 transition-opacity flex justify-center">
+                <SquarePen size={18} />
+            </div>
+        ),
     },
     {
         id: "info",
+        size: 40,
+        enableResizing: false,
         cell: ({ row }) => {
             const monsterName = row.getValue("name");
 
@@ -85,6 +91,12 @@ export const columns: ColumnDef<Character>[] = [
     },
     {
         id: "add",
-        cell: ({ row }) => <AddCharacterButton character={row.original} />,
+        size: 48,
+        enableResizing: false,
+        cell: ({ row }) => (
+            <div className="flex justify-center pr-2">
+                <AddCharacterButton character={row.original} />
+            </div>
+        ),
     },
 ];

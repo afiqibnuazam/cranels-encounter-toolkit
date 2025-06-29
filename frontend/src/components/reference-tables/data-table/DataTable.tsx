@@ -8,6 +8,7 @@ import {
     getSortedRowModel,
     SortingState,
     useReactTable,
+    ColumnSizingState,
 } from "@tanstack/react-table"
 import {
     Table,
@@ -41,6 +42,7 @@ export function ReferencePaneDataTable<TData, TValue>({
     // State management
     const [sorting, setSorting] = useState<SortingState>([])
     const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([])
+    const [columnSizing, setColumnSizing] = useState<ColumnSizingState>({})
 
     // Ref for scroll container (needed for virtualization)
     const scrollAreaRef = useRef<HTMLDivElement>(null)
@@ -61,9 +63,13 @@ export function ReferencePaneDataTable<TData, TValue>({
         getSortedRowModel: getSortedRowModel(),
         onColumnFiltersChange: setColumnFilters,
         getFilteredRowModel: getFilteredRowModel(),
+        onColumnSizingChange: setColumnSizing,
+        enableColumnResizing: true, // Enable resizing to allow table layout flexibility
+        columnResizeMode: 'onEnd', // Change from 'onChange' to 'onEnd'
         state: {
             sorting,
             columnFilters,
+            columnSizing,
         },
     })
 

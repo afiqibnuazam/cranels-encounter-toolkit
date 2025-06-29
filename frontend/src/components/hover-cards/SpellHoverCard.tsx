@@ -5,16 +5,17 @@ import {
 } from "@/components/ui/hover-card"
 import { ScrollArea } from "../ui/scroll-area"
 import { Search } from "lucide-react"
-import { Spell, SpellSummary } from "@/types/spell"
+import { SpellSummary } from "@/types/spell"
 import { useState } from "react"
 import { useSpell } from "@/hooks/useQueries"
 import { Separator } from "../ui/separator"
 
 interface SpellHoverCardProps {
     spell: SpellSummary;
+    children?: React.ReactNode;
 }
 
-const SpellHoverCard = ({ spell }: SpellHoverCardProps) => {
+const SpellHoverCard = ({ spell, children }: SpellHoverCardProps) => {
     const [isOpen, setIsOpen] = useState(false);
     const { data: fullSpell, isLoading, error } = useSpell(spell.index, spell.data_source, isOpen);
 
@@ -22,10 +23,10 @@ const SpellHoverCard = ({ spell }: SpellHoverCardProps) => {
     return (
         <HoverCard open={isOpen} onOpenChange={setIsOpen}>
             <HoverCardTrigger asChild>
-                <Search size={18} className="hover:text-primary" />
+                {children || <Search size={18} className="hover:text-primary" />}
             </HoverCardTrigger>
-            <HoverCardContent className="w-[365px]">
-                <ScrollArea className="h-[300px]">
+            <HoverCardContent className="w-[365px] py-4 pr-2 pl-4">
+                <ScrollArea className="h-[300px] pr-4" onWheel={(e) => e.stopPropagation()}>
                     <div className="space-y-3">
                         {/* Header */}
                         <div>
@@ -70,11 +71,13 @@ const SpellHoverCard = ({ spell }: SpellHoverCardProps) => {
                                 {fullSpell.duration && (
                                     <p><strong>Duration:</strong> {fullSpell.duration}</p>
                                 )}
+
+                                <Separator className="!h-[2px]" />
+
                                 {fullSpell.desc && fullSpell.desc.length > 0 && (
                                     <div>
-                                        <strong>Description:</strong>
                                         {fullSpell.desc.map((paragraph: string, index: number) => (
-                                            <p key={index} className="mt-1">{paragraph}</p>
+                                            <p key={index} className="mt-1 text-justify">{paragraph}</p>
                                         ))}
                                     </div>
                                 )}
@@ -82,7 +85,7 @@ const SpellHoverCard = ({ spell }: SpellHoverCardProps) => {
                                     <div>
                                         <strong>At Higher Levels:</strong>
                                         {fullSpell.higher_level.map((paragraph: string, index: number) => (
-                                            <p key={index} className="mt-1">{paragraph}</p>
+                                            <p key={index} className="mt-1 text-justify">{paragraph}</p>
                                         ))}
                                     </div>
                                 )}

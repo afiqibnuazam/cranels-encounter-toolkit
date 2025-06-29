@@ -1,8 +1,7 @@
 "use client"
 
 import { ColumnDef } from "@tanstack/react-table"
-import { DiamondPlus, ImageOff, SquarePen } from "lucide-react";
-import { Avatar, AvatarFallback } from "../../ui/avatar";
+import { DiamondPlus, SquarePen } from "lucide-react";
 import { useEncounter } from "@/context/EncounterContext";
 import { MonsterSummary } from "@/types/monster";
 import MonsterHoverCard from "../../hover-cards/MonsterHoverCard";
@@ -21,7 +20,6 @@ const AddMonsterButton = ({ monster }: { monster: MonsterSummary }) => {
             .then(res => res.json())
             .then(data => {
                 addCombatant({
-                    index: data.index,
                     initiative: 0,
                     name: data.name,
                     current_hit_points: data.hit_points,
@@ -32,6 +30,7 @@ const AddMonsterButton = ({ monster }: { monster: MonsterSummary }) => {
                     source_type: 'srd',
                     source_id: data.id,
                     dexterity: data.dexterity, // Include dexterity for initiative calculations
+                    effects: [], // Initialize empty effects array
                 });
             })
             .catch(err => console.error('Error fetching monster details:', err));
@@ -68,44 +67,46 @@ const EditMonsterButton = ({ monster }: { monster: MonsterSummary }) => {
 };
 
 export const columns: ColumnDef<MonsterSummary>[] = [
-    // {
-    //     id: "image",
-    //     header: "Avatar",
-    //     cell: ({ row }) => (
-    //         <Avatar className="size-8">
-    //             {/* <AvatarImage src={`${row.original.image_url}`} /> */}
-    //             <AvatarFallback><ImageOff size={12} /></AvatarFallback>
-    //         </Avatar>
-    //     ),
-    // },
     {
         accessorKey: "name",
         header: "Name",
-        size: 250,
-        enableResizing: false,
         cell: ({ row }) => {
             const monsterName = row.getValue("name");
             return (
-                <div className="font-medium">{monsterName as string}</div>
+                <div className="font-medium pl-2">
+                    {monsterName as string}
+                </div>
             );
         },
     },
     {
         id: "edit",
-        size: 35,
+        size: 40,
         enableResizing: false,
-        cell: ({ row }) => <EditMonsterButton monster={row.original} />,
+        cell: ({ row }) => (
+            <div className="opacity-0 group-hover:opacity-100 transition-opacity flex justify-center">
+                <EditMonsterButton monster={row.original} />
+            </div>
+        ),
     },
     {
         id: "info",
-        size: 35,
+        size: 40,
         enableResizing: false,
-        cell: ({ row }) => <MonsterHoverCard monster={row.original} />
+        cell: ({ row }) => (
+            <div className="flex justify-center">
+                <MonsterHoverCard monster={row.original} />
+            </div>
+        )
     },
     {
         id: "add",
-        size: 35,
+        size: 48,
         enableResizing: false,
-        cell: ({ row }) => <AddMonsterButton monster={row.original} />,
+        cell: ({ row }) => (
+            <div className="flex justify-center pr-2">
+                <AddMonsterButton monster={row.original} />
+            </div>
+        )
     },
 ];
