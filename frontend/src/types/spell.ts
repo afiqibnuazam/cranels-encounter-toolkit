@@ -5,6 +5,7 @@
 
 // Import shared types
 import { AbilityScore } from './monster';
+import { CreatureUsage } from './creature';
 
 // ===== ENUMS =====
 
@@ -94,6 +95,12 @@ export const SPELL_COMPONENTS = [
     'S', // Somatic
     'M'  // Material
 ] as const;
+
+export const SPELL_COMPONENT_DESCRIPTIONS: Record<SpellComponent, string> = {
+    V: 'Verbal',
+    S: 'Somatic',
+    M: 'Material'
+};
 
 export type SpellComponent = typeof SPELL_COMPONENTS[number];
 
@@ -246,11 +253,13 @@ export interface SpellSummary {
     id: number;
     index: string;
     name: string;
+    notes?: string;
     level: number;
     school?: SpellSchool;
     source?: string;
     data_source?: 'srd' | 'custom'; // To distinguish between SRD and custom spells
     tags?: string[]; // For filtering
+    creature_usage?: CreatureUsage;
 }
 
 // ===== API RESPONSE INTERFACES =====

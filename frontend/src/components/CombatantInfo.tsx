@@ -20,14 +20,9 @@ import {
     formatArmorClass,
     formatUsage,
     getAbilityScoreName,
-    CreatureAbility,
-    CreatureSpellcasting,
-    CreatureAction,
-    CreatureLegendaryAction,
-    CreatureReaction,
     SpellcastingProfile,
 } from '@/types/creature';
-import { SpellSchool, SpellSummary } from '@/types/spell';
+import { SpellSummary, SPELL_COMPONENT_DESCRIPTIONS, SpellComponent } from '@/types/spell';
 import SpellHoverCard from './hover-cards/SpellHoverCard';
 import { getOrdinalSuffix } from '@/lib/utils';
 
@@ -215,10 +210,165 @@ const CombatantInfo = () => {
     const renderSpellcasting = (profile: SpellcastingProfile, index: number, creature: BaseCreature, customName?: string) => {
         // Combine SRD spells and custom spells
         const allSpells = [...(profile.srd_spells || []), ...(profile.spells || [])];
-        
+
         if (allSpells.length === 0) return null;
 
-        // Group spells by level
+        // Check if this is innate spellcasting (has spells with creature_usage)
+        const isInnateSpellcasting = allSpells.some(spell => spell.creature_usage);
+
+        // Format components description for innate spellcasting
+        const formatComponentsText = () => {
+            if (!profile.components_required || profile.components_required.length === 0) {
+                return 'requiring no components';
+            }
+
+            if (profile.components_required.length === 1) {
+                const component = profile.components_required[0] as SpellComponent;
+                const componentName = SPELL_COMPONENT_DESCRIPTIONS[component].toLowerCase();
+                return `requiring only ${componentName} components`;
+            }
+
+            if (profile.components_required.length === 2) {
+                const allComponents: SpellComponent[] = ['V', 'S', 'M'];
+                const missing = allComponents.find(c => !profile.components_required!.includes(c)) as SpellComponent;
+                const missingName = SPELL_COMPONENT_DESCRIPTIONS[missing].toLowerCase();
+                return `requiring no ${missingName} components`;
+            }
+
+            // All three components required
+            return 'requiring verbal, somatic, and material components';
+        };
+
+        // For innate spellcasting, use the original description from special_abilities
+        if (isInnateSpellcasting) {
+            // Check if there's only one spell total
+            const totalSpells = allSpells.length;
+
+            if (totalSpells === 1) {
+                // Single spell innate spellcasting - display differently
+                const spell = allSpells[0];
+                const usageText = spell.creature_usage ?
+                    (spell.creature_usage.type === 'at will' || spell.creature_usage.type === 'at_will' ?
+                        'at will' :
+                        spell.creature_usage.type === 'per day' || spell.creature_usage.type === 'per_day' ?
+                            `${spell.creature_usage.times || 1}/day` :
+                            formatUsage(spell.creature_usage) || 'once'
+                    ) : 'once';
+
+                customName = customName + ` (${usageText})`;
+
+                return (
+                    <div key={index} className="text-sm">
+                        <div className="font-semibold">{customName || 'Innate Spellcasting'}</div>
+                        <div className="text-muted-foreground">
+                            The {creature.name.toLowerCase()} can innately cast{' '}
+                            <SpellHoverCard spell={spell}>
+                                <span className="italic underline decoration-dashed underline-offset-2 hover:decoration-primary cursor-pointer">
+                                    {spell.name}
+                                </span>
+                            </SpellHoverCard>
+                            {spell.notes && (
+                                <span className="text-muted-foreground"> ({spell.notes})</span>
+                            )}
+                            , {formatComponentsText()}.
+                            Its innate spellcasting ability is {getAbilityScoreName(profile.ability)}
+                            {profile.dc ? ` (spell save DC ${profile.dc})` : ''}.
+                        </div>
+                    </div>
+                );
+            }
+
+            return (
+                <div key={index} className="text-sm">
+                    <div className="font-semibold">{customName || 'Innate Spellcasting'}</div>
+                    <div className="text-muted-foreground mb-2">
+                        The {creature.name.toLowerCase()}&apos;s innate spellcasting ability is {getAbilityScoreName(profile.ability)}
+                        {profile.dc ? ` (spell save DC ${profile.dc}` : ''}
+                        {profile.modifier ? `, +${profile.modifier} to hit with spell attacks)` : ')'}.
+                        The {creature.name.toLowerCase()} can innately cast the following spells, {formatComponentsText()}:
+                    </div>
+
+                    {/* Group spells by usage type for innate spellcasting */}
+                    {(() => {
+                        const spellsByUsage: Record<string, SpellSummary[]> = {};
+
+                        allSpells.forEach(spell => {
+                            if (spell.creature_usage) {
+                                let usageKey = '';
+                                if (spell.creature_usage.type === 'at will' || spell.creature_usage.type === 'at_will') {
+                                    usageKey = 'At will';
+                                } else if (spell.creature_usage.type === 'per day' || spell.creature_usage.type === 'per_day') {
+                                    const times = spell.creature_usage.times || 1;
+                                    usageKey = times === 1 ? '1/day each' : `${times}/day each`;
+                                } else {
+                                    usageKey = formatUsage(spell.creature_usage) || 'Other';
+                                }
+
+                                if (!spellsByUsage[usageKey]) {
+                                    spellsByUsage[usageKey] = [];
+                                }
+                                spellsByUsage[usageKey].push(spell);
+                            }
+                        });
+
+                        // Define the order of usage types
+                        const usageOrder = ['At will'];
+                        const dayUsages: string[] = [];
+                        const otherUsages: string[] = [];
+
+                        // Collect and sort day-based usages by frequency (highest first)
+                        Object.keys(spellsByUsage).forEach(key => {
+                            if (key.includes('/day each')) {
+                                dayUsages.push(key);
+                            } else if (!usageOrder.includes(key)) {
+                                otherUsages.push(key);
+                            }
+                        });
+
+                        // Sort day usages by number (descending: 3/day, 2/day, 1/day)
+                        dayUsages.sort((a, b) => {
+                            const aNum = parseInt(a.split('/')[0]) || 0;
+                            const bNum = parseInt(b.split('/')[0]) || 0;
+                            return bNum - aNum;
+                        });
+
+                        const sortedUsageKeys = [
+                            ...usageOrder.filter(key => spellsByUsage[key]),
+                            ...dayUsages,
+                            ...otherUsages
+                        ];
+
+                        return sortedUsageKeys.map(usageKey => {
+                            const spells = spellsByUsage[usageKey];
+                            if (!spells || spells.length === 0) return null;
+
+                            return (
+                                <div key={usageKey} className="mb-1">
+                                    <span className="font-medium">{usageKey}:</span>
+                                    <span className="ml-1">
+                                        {spells.map((spell, spellIndex) => (
+                                            <span key={spellIndex}>
+                                                <SpellHoverCard spell={spell}>
+                                                    <span className="italic underline decoration-dashed underline-offset-2 hover:decoration-primary cursor-pointer">
+                                                        {spell.name}
+                                                    </span>
+                                                </SpellHoverCard>
+                                                {spell.notes && (
+                                                    <span className="text-muted-foreground"> ({spell.notes})</span>
+                                                )}
+                                                {spellIndex < spells.length - 1 && ', '}
+                                            </span>
+                                        ))}
+                                    </span>
+                                </div>
+                            );
+                        });
+                    })()}
+                </div>
+            );
+        }
+
+        // Traditional spellcasting - group by spell level
         const spellsByLevel = allSpells.reduce((acc: Record<number, SpellSummary[]>, spell: SpellSummary) => {
             const level = spell.level || 0;
             if (!acc[level]) acc[level] = [];
@@ -238,7 +388,7 @@ const CombatantInfo = () => {
                     The {creature.name.toLowerCase()} has the following {profile.school || 'cleric'} spells prepared:
                 </div>
 
-                {/* Render spells by level */}
+                {/* Render spells by level for traditional spellcasting */}
                 {Object.keys(spellsByLevel)
                     .map(Number)
                     .sort((a, b) => a - b)
@@ -257,10 +407,13 @@ const CombatantInfo = () => {
                                     {spells.map((spell, spellIndex) => (
                                         <span key={spellIndex}>
                                             <SpellHoverCard spell={spell}>
-                                                <span className="italic hover:underline cursor-pointer">
+                                                <span className="italic underline decoration-dashed underline-offset-2 hover:decoration-primary cursor-pointer">
                                                     {spell.name}
                                                 </span>
                                             </SpellHoverCard>
+                                            {spell.notes && (
+                                                <span className="text-muted-foreground"> ({spell.notes})</span>
+                                            )}
                                             {spellIndex < spells.length - 1 && ', '}
                                         </span>
                                     ))}
@@ -362,10 +515,10 @@ const CombatantInfo = () => {
                     <div className="flex-1">
                         <h3 className="text-3xl text-primary font-bold">{selectedCombatant.name}</h3>
                         <p className="text-sm text-muted-foreground capitalize">
-                            {showCreatureDetails && fullData.size && `${fullData.size} `}
-                            {showCreatureDetails && fullData.type}
-                            {showCreatureDetails && fullData.subtype && ` (${fullData.subtype})`}
-                            {showCreatureDetails && fullData.alignment && `, ${fullData.alignment}`}
+                            {showCreatureDetails && 'size' in fullData && fullData.size && `${fullData.size} `}
+                            {showCreatureDetails && 'type' in fullData && fullData.type}
+                            {showCreatureDetails && 'subtype' in fullData && fullData.subtype && ` (${fullData.subtype})`}
+                            {showCreatureDetails && 'alignment' in fullData && fullData.alignment && `, ${fullData.alignment}`}
                             {!showCreatureDetails && selectedCombatant.unit_type && selectedCombatant.unit_type.replace('_', ' ')}
                         </p>
                         <div className="text-sm"><strong>Current HP:</strong> {selectedCombatant.current_hit_points} / {selectedCombatant.max_hit_points}</div>
@@ -391,78 +544,81 @@ const CombatantInfo = () => {
 
                     {/* Basic combat stats */}
                     <div className="space-y-1 text-sm">
-                        <div><strong>Armor Class:</strong> {formatArmorClass(fullData?.armor_class)}</div>
+                        <div><strong>Armor Class:</strong> {formatArmorClass(fullData && 'armor_class' in fullData ? fullData.armor_class : undefined)}</div>
                         {selectedCombatant.temporary_hit_points > 0 && (
                             <div><strong>Temporary HP:</strong> {selectedCombatant.temporary_hit_points}</div>
                         )}
-                        {showCreatureDetails && fullData.speed && (
+                        {showCreatureDetails && fullData && 'speed' in fullData && fullData.speed && (
                             <div><strong>Speed:</strong> {formatSpeed(fullData.speed)}</div>
                         )}
                     </div>
 
-                    {showCreatureDetails && (
+                    {showCreatureDetails && fullData && 'strength' in fullData && (
                         <>
                             <Separator />
 
                             {/* Ability Scores */}
-                            {renderAbilityScores(fullData)}
+                            {renderAbilityScores(fullData as BaseCreature)}
 
                             <Separator />
 
                             {/* Proficiencies */}
-                            {renderProficiencies(fullData)}
+                            {renderProficiencies(fullData as BaseCreature)}
 
                             {/* Damage Info */}
-                            {renderDamageInfo(fullData)}
+                            {renderDamageInfo(fullData as BaseCreature)}
 
                             {/* Senses and Languages */}
                             <div className="space-y-1 text-sm">
-                                {fullData.senses && (
+                                {fullData && 'senses' in fullData && fullData.senses && (
                                     <div><strong>Senses:</strong> {formatSenses(fullData.senses)}</div>
                                 )}
-                                {fullData.languages && (
+                                {fullData && 'languages' in fullData && fullData.languages && (
                                     <div><strong>Languages:</strong> {fullData.languages}</div>
                                 )}
-                                {fullData.challenge_rating !== undefined && (
+                                {fullData && 'challenge_rating' in fullData && fullData.challenge_rating !== undefined && (
                                     <div>
                                         <strong>Challenge:</strong> {getChallengeRatingString(fullData.challenge_rating)}
-                                        {fullData.xp && ` (${fullData.xp.toLocaleString()} XP)`}
+                                        {fullData && 'xp' in fullData && fullData.xp && ` (${fullData.xp.toLocaleString()} XP)`}
                                     </div>
                                 )}
                             </div>
 
-                            {(fullData.special_abilities || fullData.actions || fullData.legendary_actions || fullData.reactions) && (
-                                <>
-                                    <Separator />
+                            {((fullData && 'special_abilities' in fullData && fullData.special_abilities) ||
+                                (fullData && 'actions' in fullData && fullData.actions) ||
+                                (fullData && 'legendary_actions' in fullData && fullData.legendary_actions) ||
+                                (fullData && 'reactions' in fullData && fullData.reactions)) && (
+                                    <>
+                                        <Separator />
 
-                                    {/* Special Abilities */}
-                                    {renderSpecialAbilities(fullData)}
+                                        {/* Special Abilities */}
+                                        {renderSpecialAbilities(fullData as BaseCreature)}
 
-                                    {/* Actions */}
-                                    {fullData.actions && fullData.actions.length > 0 && (
-                                        <>
-                                            <Separator />
-                                            {renderActions(fullData)}
-                                        </>
-                                    )}
+                                        {/* Actions */}
+                                        {fullData && 'actions' in fullData && fullData.actions && fullData.actions.length > 0 && (
+                                            <>
+                                                <Separator />
+                                                {renderActions(fullData as BaseCreature)}
+                                            </>
+                                        )}
 
-                                    {/* Legendary Actions */}
-                                    {fullData.legendary_actions && fullData.legendary_actions.length > 0 && (
-                                        <>
-                                            <Separator />
-                                            {renderLegendaryActions(fullData)}
-                                        </>
-                                    )}
+                                        {/* Legendary Actions */}
+                                        {fullData && 'legendary_actions' in fullData && fullData.legendary_actions && fullData.legendary_actions.length > 0 && (
+                                            <>
+                                                <Separator />
+                                                {renderLegendaryActions(fullData as BaseCreature)}
+                                            </>
+                                        )}
 
-                                    {/* Reactions */}
-                                    {fullData.reactions && fullData.reactions.length > 0 && (
-                                        <>
-                                            <Separator />
-                                            {renderReactions(fullData)}
-                                        </>
-                                    )}
-                                </>
-                            )}
+                                        {/* Reactions */}
+                                        {fullData && 'reactions' in fullData && fullData.reactions && fullData.reactions.length > 0 && (
+                                            <>
+                                                <Separator />
+                                                {renderReactions(fullData as BaseCreature)}
+                                            </>
+                                        )}
+                                    </>
+                                )}
                         </>
                     )}
                 </div>

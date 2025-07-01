@@ -4,7 +4,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
 import { useEncounterState, useEncounter, Combatant } from '@/context/EncounterContext';
 import HealthBar from './components/HealthBar';
 import { Button } from '../ui/button';
-import { Eye } from 'lucide-react';
+import { Eye, HeartPlus, Swords } from 'lucide-react';
 import { useMonster, useCharacter } from '@/hooks/useQueries';
 import { ActionIcon, BonusActionIcon, InitiativeIcon, ReactionIcon } from '../icons/CombatIcons';
 import { Tooltip, TooltipContent, TooltipTrigger } from '../ui/tooltip';
@@ -48,26 +48,31 @@ export default function CombatantControl() {
     // Get spell slot data from fetched data (total available slots)
     const primarySpellcastingProfile = (fullData && 'spellcasting_profiles' in fullData ? fullData.spellcasting_profiles?.[0] : undefined);
 
-    // Get total slots from Monster/Unit template
+    // Determine spellcasting type
+    const hasTraditionalSlots = primarySpellcastingProfile?.slots && Object.keys(primarySpellcastingProfile.slots).length > 0;
+
+    // Get total slots from Monster/Unit template (for traditional spellcasting)
     const totalSlots = primarySpellcastingProfile?.slots || {};
 
     // Get used slots from Combatant instance
     const usedSlots = activeCombatant?.used_spell_slots || {};
 
-    // Convert to display format
+    // Convert to display format for traditional spell slots
     const spellSlotsByLevel: { level: number; total: number; used: number }[] = [];
 
-    for (let level = 1; level <= 9; level++) {
-        const levelKey = level.toString();
-        const totalSlotsForLevel = totalSlots[levelKey] || 0;
-        const usedSlotsForLevel = usedSlots[levelKey] || 0;
+    if (hasTraditionalSlots) {
+        for (let level = 1; level <= 9; level++) {
+            const levelKey = level.toString();
+            const totalSlotsForLevel = totalSlots[levelKey] || 0;
+            const usedSlotsForLevel = usedSlots[levelKey] || 0;
 
-        if (totalSlotsForLevel > 0) {
-            spellSlotsByLevel.push({
-                level,
-                total: totalSlotsForLevel,
-                used: Math.min(usedSlotsForLevel, totalSlotsForLevel)
-            });
+            if (totalSlotsForLevel > 0) {
+                spellSlotsByLevel.push({
+                    level,
+                    total: totalSlotsForLevel,
+                    used: Math.min(usedSlotsForLevel, totalSlotsForLevel)
+                });
+            }
         }
     }
 
@@ -76,9 +81,9 @@ export default function CombatantControl() {
     const isConcentrating = activeCombatant?.effects?.some(effect => effect.concentration) || false;
 
     // Check if the displayed combatant is the one whose turn it currently is
-    const isCurrentTurn = isRunning && combatants.length > 0 && currentTurn >= 0 && 
-                         activeCombatant?.index === combatants[currentTurn]?.index;
-    
+    const isCurrentTurn = isRunning && combatants.length > 0 && currentTurn >= 0 &&
+        activeCombatant?.index === combatants[currentTurn]?.index;
+
     // Check if the displayed combatant is manually selected (and not just the current turn)
     const isSelectedCombatant = selectedCombatantId && !isCurrentTurn;
 
@@ -137,12 +142,20 @@ export default function CombatantControl() {
                 <div className="h-[35%] flex">
                     <div className="w-[80px]" />
                     <div className="w-[80px] bg-primary-foreground" />
-                    <div className="w-[calc(100%-160px)] bg-primary-foreground flex flex-col items-center p-2 rounded-tr-md">
+                    <div className="w-[calc(100%-160px)] bg-primary-foreground flex gap-1 items-center justify-between p-2 rounded-tr-md">
                         <HealthBar
                             currentHealth={activeCombatant?.current_hit_points || 0}
                             maxHealth={activeCombatant?.max_hit_points || 0}
                             tempHealth={activeCombatant?.temporary_hit_points || 0}
                         />
+                        <div className="flex flex-col gap-1">
+                            <button className="w-7 h-[18px] bg-secondary rounded-sm flex items-center justify-center p-1 cursor-pointer hover:bg-secondary/80 hover:text-destructive" title="Apply Damage">
+                                <Swords size={12} />
+                            </button>
+                            <button className="w-7 h-[18px] bg-secondary rounded-sm flex items-center justify-center p-1 cursor-pointer hover:bg-secondary/80 hover:text-primary" title="Apply Healing">
+                                <HeartPlus size={12} />
+                            </button>
+                        </div>
                     </div>
                 </div>
 

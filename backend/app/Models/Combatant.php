@@ -18,6 +18,7 @@ class Combatant extends Model
         'temporary_hit_points',
         'armor_class',
         'used_spell_slots',
+        'used_spell_casts',
         'action_used',
         'bonus_action_used',
         'reaction_used',
@@ -29,6 +30,7 @@ class Combatant extends Model
     protected $casts = [
         'unit_type'                 => UnitType::class,
         'used_spell_slots'          => 'array',
+        'used_spell_casts'          => 'array',
         'action_used'               => 'boolean',
         'bonus_action_used'         => 'boolean',
         'reaction_used'             => 'boolean',
@@ -60,6 +62,31 @@ class Combatant extends Model
                 unset($usedSlots[$levelKey]);
             }
             $this->update(['used_spell_slots' => $usedSlots]);
+        }
+    }
+
+    // Helper methods for individual spell cast management (for innate spellcasting)
+    public function getUsedSpellCasts(): array
+    {
+        return $this->used_spell_casts ?? [];
+    }
+
+    public function useSpellCast(string $spellIndex): void
+    {
+        $usedCasts = $this->getUsedSpellCasts();
+        $usedCasts[$spellIndex] = ($usedCasts[$spellIndex] ?? 0) + 1;
+        $this->update(['used_spell_casts' => $usedCasts]);
+    }
+
+    public function restoreSpellCast(string $spellIndex): void
+    {
+        $usedCasts = $this->getUsedSpellCasts();
+        if (isset($usedCasts[$spellIndex]) && $usedCasts[$spellIndex] > 0) {
+            $usedCasts[$spellIndex]--;
+            if ($usedCasts[$spellIndex] === 0) {
+                unset($usedCasts[$spellIndex]);
+            }
+            $this->update(['used_spell_casts' => $usedCasts]);
         }
     }
 

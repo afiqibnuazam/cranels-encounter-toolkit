@@ -25,7 +25,8 @@ export interface Combatant {
     armor_class: number;
     
     // Combat state tracking
-    used_spell_slots?: Record<string, number>;
+    used_spell_slots?: Record<string, number>; // Traditional spell slots (by level)
+    used_spell_casts?: Record<string, number>; // Individual spell usage tracking (by spell name/index)
     action_used?: boolean;
     bonus_action_used?: boolean;
     reaction_used?: boolean;
@@ -468,6 +469,7 @@ export function useEncounter() {
                 temporary_hit_points: combatant.temporary_hit_points || 0,
                 armor_class: combatant.armor_class,
                 used_spell_slots: combatant.used_spell_slots,
+                used_spell_casts: combatant.used_spell_casts,
                 action_used: combatant.action_used,
                 bonus_action_used: combatant.bonus_action_used,
                 reaction_used: combatant.reaction_used,
@@ -595,6 +597,85 @@ export function useEncounter() {
         }
     };
 
+    // TODO: transfer to useQueries.ts
+    const useSpellCast = async (combatantIndex: string, spellIndexOrName: string) => {
+        try {
+            const combatant = state.combatants.find(c => c.index === combatantIndex);
+            if (!combatant) return;
+
+            // If combatant is saved to DB and has an ID, call API
+            if (combatant.id) {
+                const response = await fetch(`/api/combatants/${combatant.id}/use-spell-cast`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ spell_index: spellIndexOrName })
+                });
+                
+                if (!response.ok) {
+                    console.error('Failed to update spell cast on server');
+                    return;
+                }
+            }
+
+            // Update local state
+            dispatch({
+                type: 'UPDATE_COMBATANT',
+                payload: {
+                    index: combatantIndex,
+                    updates: {
+                        used_spell_casts: {
+                            ...combatant.used_spell_casts,
+                            [spellIndexOrName]: (combatant.used_spell_casts?.[spellIndexOrName] || 0) + 1
+                        }
+                    }
+                }
+            });
+        } catch (error) {
+            console.error('Failed to use spell cast:', error);
+        }
+    };
+
+    // TODO: transfer to useQueries.ts
+    const restoreSpellCast = async (combatantIndex: string, spellIndexOrName: string) => {
+        try {
+            const combatant = state.combatants.find(c => c.index === combatantIndex);
+            if (!combatant) return;
+
+            // If combatant is saved to DB and has an ID, call API
+            if (combatant.id) {
+                const response = await fetch(`/api/combatants/${combatant.id}/restore-spell-cast`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ spell_index: spellIndexOrName })
+                });
+                
+                if (!response.ok) {
+                    console.error('Failed to update spell cast on server');
+                    return;
+                }
+            }
+
+            // Update local state
+            const currentUsed = combatant.used_spell_casts?.[spellIndexOrName] || 0;
+            if (currentUsed > 0) {
+                dispatch({
+                    type: 'UPDATE_COMBATANT',
+                    payload: {
+                        index: combatantIndex,
+                        updates: {
+                            used_spell_casts: {
+                                ...combatant.used_spell_casts,
+                                [spellIndexOrName]: currentUsed - 1
+                            }
+                        }
+                    }
+                });
+            }
+        } catch (error) {
+            console.error('Failed to restore spell cast:', error);
+        }
+    };
+
     return {
         ...state,
         addCombatant,
@@ -614,5 +695,7 @@ export function useEncounter() {
         needsAuth: !authToken && !state.isSaved,
         useSpellSlot,
         restoreSpellSlot,
+        useSpellCast,
+        restoreSpellCast,
     };
 }

@@ -30,7 +30,7 @@ const SpellHoverCard = ({ spell, children }: SpellHoverCardProps) => {
                     <div className="space-y-3">
                         {/* Header */}
                         <div>
-                            <h1 className="text-lg font-bold">{spell.name}</h1>
+                            <h1 className="text-xl text-primary font-bold">{spell.name}</h1>
                             <p className="text-sm text-muted-foreground">
                                 {spell.level === 0 ? 'Cantrip' : `Level ${spell.level}`} {spell.school}
                                 {fullSpell?.ritual && ' (ritual)'}

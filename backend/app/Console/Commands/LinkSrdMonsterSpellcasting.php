@@ -31,6 +31,12 @@ class LinkSrdMonsterSpellcasting extends Command
         $count = 0;
 
         foreach ($monsters as $monster) {
+            // Skip if monster already has spellcasting profiles
+            if ($monster->spellcastingProfiles()->count() > 0) {
+                $this->info("Skipping {$monster->name} - already has spellcasting profiles");
+                continue;
+            }
+
             $abilities = $monster->special_abilities ?? [];
 
             foreach ($abilities as $ability) {
@@ -57,14 +63,16 @@ class LinkSrdMonsterSpellcasting extends Command
                     ]);
 
                     // Link spells (assume $profile->srdSpells() is a morphToMany relation)
-                    foreach ($profileData['spells'] as $spellInfo) {
-                        // Lookup SRD spell by name (case-insensitive)
-                        $srdSpell = SrdSpell::whereRaw('LOWER(name) = ?', [strtolower($spellInfo['name'])])->first();
-                        if ($srdSpell) {
-                            $profile->srdSpells()->syncWithoutDetaching([$srdSpell->id]);
-                            $this->info("Linked spell '{$srdSpell->name}' to '{$monster->name}'");
-                        } else {
-                            $this->warn("Could not find spell '{$spellInfo['name']}' for monster '{$monster->name}'");
+                    if (isset($profileData['spells']) && is_array($profileData['spells'])) {
+                        foreach ($profileData['spells'] as $spellInfo) {
+                            // Lookup SRD spell by name (case-insensitive)
+                            $srdSpell = SrdSpell::whereRaw('LOWER(name) = ?', [strtolower($spellInfo['name'])])->first();
+                            if ($srdSpell) {
+                                $profile->srdSpells()->syncWithoutDetaching([$srdSpell->id]);
+                                $this->info("Linked spell '{$srdSpell->name}' to '{$monster->name}'");
+                            } else {
+                                $this->warn("Could not find spell '{$spellInfo['name']}' for monster '{$monster->name}'");
+                            }
                         }
                     }
 
